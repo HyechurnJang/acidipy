@@ -31,7 +31,7 @@ Retrive details on a instance already read
 
 > **OBJECT_INSTANCE**.getDetail()
 
-	tenant.getDetail()
+	tenant_instance.getDetail()
 
 __Create Object__
 
