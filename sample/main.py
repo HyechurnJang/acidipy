@@ -7,7 +7,8 @@ Created on 2016. 10. 6.
 from acidipy import *
 
 if __name__ == '__main__':
-    dom = Domain('10.72.86.21', 'admin', '1234Qwer')
+    
+    dom = Domain('APIC DOMAIN', 'USER', 'PASSWORD')
     
     print '\nRESULT1 #####################################################\n'
     print '1. Tenants'
