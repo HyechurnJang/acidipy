@@ -35,9 +35,9 @@ Retrive details on a instance already read
 
 __Create Object__
 
-> object = **OBJECT**(**PARAMETERS**)
+> object_instance = **OBJECT**(**PARAMETERS**)
 
-	tenant = Tenant(name="test_tenant")
+	tenant_instance = Tenant(name="test_tenant")
 
 __Update Object__
 
