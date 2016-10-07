@@ -78,7 +78,7 @@ Relate with Object Instance's method relate()
 	# as like BD(1) : EPG(N)
 	epg_instance.relate(bd_instance)
 
-Or with "<<" Operator
+Or with "&" Operator
 
 > **RELATION_INSTANCE_1** **&** **RELATION_INSTANCE_2**
 
