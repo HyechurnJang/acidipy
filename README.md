@@ -5,6 +5,36 @@ Cisco ACI Python API
 
 ![Relations](http://www.cisco.com/c/dam/en/us/td/i/300001-400000/340001-350000/348001-349000/348505.eps/_jcr_content/renditions/348505.jpg)
 
+## Grammar
+
+### Objects
+
+- Domain
+- Tenant
+- AppProf
+- EndPointGroup
+- BridgeDomain
+- Subnet
+
+### Methods
+
+!) *Exclude* **Domain** *Object*
+
+#### Class Method
+- getList : Retrive Object List
+
+#### Instance Method
+- getDetail : Get all attributes on object retrived
+- getRefresh : Get lastest attributes
+- getParent : Get parent object
+- getChildren : Get children objects
+- create : Create object to APIC
+- update : Update object to APIC
+- delete : Delete object from APIC
+- relate : Relate between objects
+- << : c : as like create
+- & : as like relate
+
 ## Usages
 
 ### Import Source
@@ -21,13 +51,13 @@ Cisco ACI Python API
 
 #### Read Objects
 
-Reading name-only
+Retrive name-only
 
 > **OBJECT_INSTANCES** = **OBJECT**.getList(dom)
 
 	tenant_instances = Tenant.getList(dom)
 
-Reading with details
+Retrive with details
 
 > **OBJECT_INSTANCES** = **OBJECT**.getList(dom, detail=True)
 
