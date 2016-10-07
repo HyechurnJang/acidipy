@@ -80,12 +80,12 @@ Relate with Object Instance's method relate()
 
 Or with "<<" Operator
 
-> **RELATION_INSTANCE_1** **<<** **RELATION_INSTANCE_2**
+> **RELATION_INSTANCE_1** **&** **RELATION_INSTANCE_2**
 
-> **RELATION_INSTANCE_2** **<<** **RELATION_INSTANCE_1**
+> **RELATION_INSTANCE_2** **&** **RELATION_INSTANCE_1**
 
-	epg_instance << bd_instance
-	bd_instance << epg_instance
+	epg_instance & bd_instance
+	bd_instance & epg_instance
 
 #### Delete Object
 

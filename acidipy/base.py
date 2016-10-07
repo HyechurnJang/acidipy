@@ -9,6 +9,7 @@ import json
 class ACIObject(dict):
     _PARENT = None
     _CHILD = []
+    _RELAT = []
     
     def __init__(self, _object=None, _domain=None, _detail=False, **attributes):
         dict.__init__(self, **attributes)
@@ -22,8 +23,11 @@ class ACIObject(dict):
     
     def __lshift__(self, obj):
         if obj._OBJECT in self._CHILD: return obj.create(self)
-        if obj._OBJECT in self._RSOBJ: return self.relate(obj)
-        if obj._OBJECT in self._RTOBJ: return obj.relate(self)
+        return False
+    
+    def __and__(self, obj):
+        if obj._OBJECT in self._RELAT: return self.relate(obj)
+        if self._OBJECT in obj._RELAT: return obj.relate(self)
         return False
     
     def toJson(self):

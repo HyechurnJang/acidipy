@@ -17,8 +17,7 @@ class Tenant(ACIObject):
               'fvAp',
               'fvBD',
               ]
-    _RSOBJ = []
-    _RTOBJ = []
+    _RELAT = []
     
     def __init__(self, name, **attributes):
         ACIObject.__init__(self, name=name, **attributes)
@@ -32,8 +31,7 @@ class AppProf(ACIObject):
     _CHILD = [
               'fvAEPg',
               ]
-    _RSOBJ = []
-    _RTOBJ = []
+    _RELAT = []
     
     def __init__(self, name, **attributes):
         ACIObject.__init__(self, name=name, **attributes)
@@ -47,10 +45,7 @@ class BridgeDomain(ACIObject):
     _CHILD = [
               'fvSubnet',
               ]
-    _RSOBJ = []
-    _RTOBJ = [
-              'fvAEPg'
-              ]
+    _RELAT = []
     
     def __init__(self, name, **attributes):
         ACIObject.__init__(self, name=name, **attributes)
@@ -62,10 +57,9 @@ class EndPointGroup(ACIObject):
     _PKTMPL = '%s'
     _PARENT = 'fvAp'
     _CHILD = []
-    _RSOBJ = [
+    _RELAT = [
               'fvBD'
               ]
-    _RTOBJ = []
     
     def __init__(self, name, **attributes):
         ACIObject.__init__(self, name=name, **attributes)
@@ -85,8 +79,7 @@ class Subnet(ACIObject):
     _PKTMPL = '[%s]'
     _PARENT = 'fvBD'
     _CHILD = []
-    _RSOBJ = []
-    _RTOBJ = []
+    _RELAT = []
     
     def __init__(self, name, ip, **attributes):
         ACIObject.__init__(self, name=name, ip=ip, **attributes)
