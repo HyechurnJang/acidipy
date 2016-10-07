@@ -9,7 +9,7 @@ Cisco ACI Python API
 
 ### Get Domain Session
 
-> **DOMAIN_INSTANCE** = **Domain**(<APIC_IP>, <USER>, <PASSWORD> [,debug(default:False)=True|False])
+> **DOMAIN_INSTANCE** = **Domain**(**APIC_IP**, **USER**, **PASSWORD** [,debug(default:False)=True|False])
 
 	domain_instance = Domain('123.123.123.123', 'cisco', 'cisco123')
 
