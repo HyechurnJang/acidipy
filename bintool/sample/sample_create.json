@@ -1,0 +1,47 @@
+{
+	"domain": {
+		"ip": "X.X.X.X",
+		"user": "cisco",
+		"pwd": "cisco123"
+	},
+	"tenant": [
+		{
+			"name": "hyjang-test",
+			"app-prof": [
+				{
+					"name": "app1",
+					"epg": [
+						{
+							"name": "epg1",
+							"rsbd": "bd1"
+						},
+						{
+							"name": "epg2",
+							"rsbd": "bd1"
+						}
+					]
+				}
+			],
+			"bridge-domain": [
+				{
+					"name": "bd1",
+					"subnet": [
+						{
+							"name": "subnet1",
+							"ip": "10.1.1.1/24"
+						},
+						{
+							"name": "subnet2",
+							"ip": "10.1.2.1/24"
+						}
+					]
+				},
+				{
+					"name": "bd2",
+					"subnet": [
+					]
+				}
+			]
+		}
+	]
+}

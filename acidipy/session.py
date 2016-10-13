@@ -6,7 +6,9 @@ Created on 2016. 10. 6.
 
 import json
 import requests
-from .models import *
+from .uni import *
+from .topo import *
+from .child import *
 
 class ACISession:
     
@@ -18,7 +20,9 @@ class ACISession:
         self.url = 'https://%s' % ip
         login_url = self.url + '/api/aaaLogin.json'
         data = {'aaaUser': {'attributes': {'name': user, 'pwd': pwd}}}
-        self.session.post(login_url, data=json.dumps(data, sort_keys=True), verify=False)
+        resp = self.session.post(login_url, data=json.dumps(data, sort_keys=True), verify=False)
+        if resp.status_code == 200: self.is_active = True
+        else: self.is_active = False
         
     def close(self):
         self.session.close()
@@ -75,6 +79,7 @@ class Domain(ACISession):
     ACI_OBJECT_MAPPING = {
         'fvTenant' : 'Tenant',
         'fvBD' : 'BridgeDomain',
+        'fvSubnet' : 'Subnet',
         'fvAp' : 'AppProf',
         'fvAEPg' : 'EndPointGroup',
     }
@@ -103,13 +108,41 @@ class Domain(ACISession):
             for key in clause: query += 'eq(%s.%s,"%s"),' % (_target, key, clause[key])
             query += ')'
         
-        url = '/api/node/class/' + _target +'.json' + query
+        url = '/api/node/class/' + _target + '.json' + query
         data = self.get(url)
         ret = []
         for d in data:
             for obj_name in d:
                 cls = self.__getObjCls__(obj_name)
                 if cls: ret.append(cls(_object=obj_name, _domain=self, _detail=_detail, **d[obj_name]['attributes']))
+        return ret
+    
+    def getHealthList(self, _target):
+        ret = []
+        if _target._HEALTH_TYPE == ACIObject.HEALTH_TYPE_CHILD:
+            url = '/api/node/class/' + _target._OBJECT + '.json?rsp-subtree-include=health'
+            data = self.get(url)
+            for d in data:
+                for obj_name in d:
+                    dn = d[obj_name]['attributes']['dn']
+                    prival = d[obj_name]['attributes'][_target._PRIKEY]
+                    if 'children' in d[obj_name]: 
+                        for c in d[obj_name]['children']:
+                            if 'healthInst' in c:
+                                health = Health(dn, c['healthInst']['attributes']['cur'])
+                                health[_target._PRIKEY] = prival
+                                ret.append(health)
+                                break
+        elif _target._HEALTH_TYPE == ACIObject.HEALTH_TYPE_URL:
+            url = _target._HEALTH_URL
+            data = self.get(url)
+            for d in data:
+                for obj_name in d:
+                    attrs = d[obj_name]['attributes']
+                    dn = _target._HEALTH_DNF(attrs['dn'])
+                    health = Health(dn, attrs[_target._HEALTH_KEY])
+                    health[_target._PRIKEY] = dn.split(_target._IDENTY)[1]
+                    ret.append(health)
         return ret
     
     def getOne(self, _dn, _detail=False):

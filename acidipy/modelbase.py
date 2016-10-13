@@ -1,5 +1,5 @@
 '''
-Created on 2016. 10. 6.
+Created on 2016. 10. 11.
 
 @author: "comfact"
 '''
@@ -10,6 +10,10 @@ class ACIObject(dict):
     _PARENT = None
     _CHILD = []
     _RELAT = []
+    
+    HEALTH_TYPE_NONE = 0
+    HEALTH_TYPE_CHILD = 1
+    HEALTH_TYPE_URL = 2
     
     def __init__(self, _object=None, _domain=None, _detail=False, **attributes):
         dict.__init__(self, **attributes)
@@ -44,6 +48,10 @@ class ACIObject(dict):
     @classmethod
     def getList(cls, domain, detail=False, **clause):
         return domain.getList(cls._OBJECT, detail, **clause)
+    
+    @classmethod
+    def getHealthList(cls, domain):
+        return domain.getHealthList(cls)
     
     def getRefresh(self):
         if not self._detail: return self

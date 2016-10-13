@@ -1,0 +1,7 @@
+---
+domain:
+  ip: X.X.X.X
+  user: cisco
+  pwd: cisco123
+tenant:
+- name: hyjang-test

@@ -1,0 +1,75 @@
+#!/usr/bin/python
+'''
+Created on 2016. 10. 13.
+
+@author: "comfact"
+'''
+
+import os
+import sys
+import shutil
+import argparse
+
+FORCE_COUNT = 3
+
+def install(args):
+    for path in sys.path:
+        if 'site-packages' in path: python_library = path; break
+        elif 'dist-packages' in path: python_library = path; break
+    else:
+        print 'search python library failed'
+        exit(1)
+    python_library += '/acidipy'
+    print 'Library Destination :', python_library
+    if os.path.exists(python_library) and args.force:
+        try: shutil.rmtree(python_library)
+        except: 'Prepare Directory Failed'; exit(1)
+    
+    print 'Install Acidipy',
+    try: shutil.copytree('./acidipy', python_library)
+    except: print 'Failed'
+    else: print 'OK'
+    
+    if args.bintool:
+        print 'Install Acidipy Binary Utils'
+        if os.path.exists('/usr/bin'):
+            if os.path.exists('/usr/bin/acitool'):
+                if args.force:
+                    os.system('rm -rf /usr/bin/acitool')
+                    print 'Remove Previous "acitool" Failed'; exit(1)
+                    shutil.copy('./bintool/acitool', '/usr/bin/acitool')
+            else:
+                shutil.copy('./bintool/acitool', '/usr/bin/acitool')
+    
+    if args.ansible:
+        pass
+
+def uninstall(args):
+    for path in sys.path:
+        if 'site-packages' in path: python_library = path; break
+        elif 'dist-packages' in path: python_library = path; break
+    else:
+        print 'search python library failed'
+        exit(1)
+    python_library += '/acidipy'
+    print 'Library Destination :', python_library
+    try: shutil.rmtree(python_library)
+    except: print 'Remove Acidipy Failed'
+    else: print 'Remove Acidipy OK'
+    
+    if os.path.exists('/usr/bin/acitool'):
+        if os.system('rm -rf /usr/bin/acitool') != 0: print 'Remove "acitool" Failed'
+        else: print 'Remove "acitool OK'
+
+if __name__ == '__main__':
+    
+    parser = argparse.ArgumentParser(description='"acidipy" installing tool')
+    parser.add_argument('-a', '--ansible', action='store_true', help='ansible module')
+    parser.add_argument('-b', '--bintool', action='store_true', help='binary tools')
+    parser.add_argument('-f', '--force', action='store_true', help='force action')
+    parser.add_argument('-r', '--remove', action='store_true', help='remove acidipy packages')
+    args = parser.parse_args()
+    
+    if args.remove: uninstall(args)
+    else: install(args)
+        
