@@ -48,3 +48,4 @@ class Node(ACIObject):
     
     def __init__(self, name, **attributes):
         ACIObject.__init__(self, name=name, **attributes)
+

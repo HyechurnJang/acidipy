@@ -1,7 +1,9 @@
 ---
-domain:
+Domain:
   ip: X.X.X.X
   user: cisco
   pwd: cisco123
-tenant:
+Option:
+  deleteEmptyTenant: true
+Tenant:
 - name: hyjang-test

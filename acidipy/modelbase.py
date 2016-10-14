@@ -50,6 +50,10 @@ class ACIObject(dict):
         return domain.getList(cls._OBJECT, detail, **clause)
     
     @classmethod
+    def getOne(cls, domain, dn, detail=False):
+        return domain.getOne(dn, detail)
+    
+    @classmethod
     def getHealthList(cls, domain):
         return domain.getHealthList(cls)
     

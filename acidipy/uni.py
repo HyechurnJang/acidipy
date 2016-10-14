@@ -18,6 +18,7 @@ class Tenant(ACIObject):
     _CHILD = [
               'fvAp',
               'fvBD',
+              'fvCtx',
               ]
     _RELAT = []
     
@@ -53,6 +54,31 @@ class BridgeDomain(ACIObject):
     _CHILD = [
               'fvSubnet',
               ]
+    _RELAT = [
+              'fvCtx'
+              ]
+    
+    _HEALTH_TYPE = ACIObject.HEALTH_TYPE_CHILD
+    
+    def __init__(self, name, **attributes):
+        ACIObject.__init__(self, name=name, **attributes)
+        
+    def relate(self, rel):
+        if isinstance(rel, Context):
+            if self._domain.create(self['dn'], json.dumps({'fvRsCtx' : {'attributes' : {'tnFvCtxName' : rel['name']}}})):
+                self.getRefresh()
+                rel.getRefresh()
+                return True
+        return False
+        
+class Context(ACIObject):
+    _OBJECT = 'fvCtx'
+    _IDENTY = '/ctx-'
+    _PRIKEY = 'name'
+    _PKTMPL = '%s'
+    
+    _PARENT = 'fvTenant'
+    _CHILD = []
     _RELAT = []
     
     _HEALTH_TYPE = ACIObject.HEALTH_TYPE_CHILD

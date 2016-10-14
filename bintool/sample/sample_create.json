@@ -1,44 +1,49 @@
 {
-	"domain": {
+	"Domain": {
 		"ip": "X.X.X.X",
 		"user": "cisco",
 		"pwd": "cisco123"
 	},
-	"tenant": [
+	"Option": {
+		"deleteEmptyTenant" : true
+	},
+	"Tenant": [
 		{
 			"name": "hyjang-test",
-			"app-prof": [
+			"Context": [
 				{
-					"name": "app1",
-					"epg": [
-						{
-							"name": "epg1",
-							"rsbd": "bd1"
-						},
-						{
-							"name": "epg2",
-							"rsbd": "bd1"
-						}
-					]
+					"name": "router1"
 				}
 			],
-			"bridge-domain": [
+			"BridgeDomain": [
 				{
 					"name": "bd1",
-					"subnet": [
+					"Context@": "router1",
+					"Subnet": [
 						{
 							"name": "subnet1",
-							"ip": "10.1.1.1/24"
+							"ip": "10.1.1.1/24",
+							"scope": "public"
 						},
 						{
 							"name": "subnet2",
 							"ip": "10.1.2.1/24"
 						}
 					]
-				},
+				}
+			],
+			"AppProf": [
 				{
-					"name": "bd2",
-					"subnet": [
+					"name": "app1",
+					"EndPointGroup": [
+						{
+							"name": "epg1",
+							"BridgeDomain@": "bd1"
+						},
+						{
+							"name": "epg2",
+							"BridgeDomain@": "bd1"
+						}
 					]
 				}
 			]

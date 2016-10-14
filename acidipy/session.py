@@ -34,7 +34,7 @@ class ACISession:
         if self.debug:
             print 'GET :', url
             resp = self.session.get(self.url + url)
-            print 'CODE :', resp.status_code, '\n', resp.text, '\n'
+            print 'CODE :', resp.status_code, '\n', resp.text
         else:
             resp = self.session.get(self.url + url)
         if resp.status_code == 200: return resp.json()['imdata']
@@ -43,8 +43,9 @@ class ACISession:
     def post(self, url, data):
         if self.debug:
             print 'POST :', url
+            print data
             resp = self.session.post(self.url + url, data=data)
-            print 'CODE :', resp.status_code, '\n', resp.text, '\n'
+            print 'CODE :', resp.status_code, '\n', resp.text
         else:
             resp = self.session.post(self.url + url, data=data)
         if resp.status_code == 200: return True
@@ -53,8 +54,9 @@ class ACISession:
     def put(self, url, data):
         if self.debug:
             print 'PUT :', url
+            print data
             resp = self.session.put(self.url + url, data=data)
-            print 'CODE :', resp.status_code, '\n', resp.text, '\n'
+            print 'CODE :', resp.status_code, '\n', resp.text
         else:
             resp = self.session.put(self.url + url, data=data)
         if resp.status_code == 200: return True
@@ -64,7 +66,7 @@ class ACISession:
         if self.debug:
             print 'DELETE :', url
             resp = self.session.delete(self.url + url)
-            print 'CODE :', resp.status_code, '\n', resp.text, '\n'
+            print 'CODE :', resp.status_code, '\n', resp.text
         else:
             resp = self.session.delete(self.url + url)
         if resp.status_code == 200: return True
