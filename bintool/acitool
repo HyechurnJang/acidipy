@@ -22,7 +22,11 @@ if __name__ == '__main__':
     verbose = args.verbose
     debug = args.debug
     
-    with open(file_path) as fd: lines = fd.readlines()
+    try:
+        with open(file_path) as fd: lines = fd.readlines()
+    except:
+        print 'read', file_path, 'failed'
+        exit(1)
     raw_desc = ''.join(lines)
     
     try: desc = json.loads(raw_desc)
