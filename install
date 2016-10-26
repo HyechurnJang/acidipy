@@ -36,7 +36,7 @@ def install(args):
             if os.path.exists('/usr/bin/acitool'):
                 if args.force:
                     os.system('rm -rf /usr/bin/acitool')
-                    print 'Remove Previous "acitool" Failed'; exit(1)
+                    print 'Remove Previous "/usr/bin/acitool" Failed'; exit(1)
                     shutil.copy('./bintool/acitool', '/usr/bin/acitool')
             else:
                 shutil.copy('./bintool/acitool', '/usr/bin/acitool')
@@ -59,7 +59,7 @@ def uninstall(args):
     
     if os.path.exists('/usr/bin/acitool'):
         if os.system('rm -rf /usr/bin/acitool') != 0: print 'Remove "acitool" Failed'
-        else: print 'Remove "acitool OK'
+        else: print 'Remove "/usr/bin/acitool" OK'
 
 if __name__ == '__main__':
     
