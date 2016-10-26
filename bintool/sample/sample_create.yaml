@@ -7,11 +7,13 @@ Option:
   deleteEmptyTenant: true
 Tenant:
 - name: hyjang-test
-  Context:
+  Contract:
+  - name: test-ctr
+  VRF:
   - name: router1
-  BridgeDomain:
+  BrDom:
   - name: bd1
-    Context@: router1
+    VRF@: router1
     Subnet:
     - name: subnet1
       ip: 10.1.1.1/24
@@ -20,8 +22,17 @@ Tenant:
       ip: 10.1.2.1/24
   AppProf:
   - name: app1
-    EndPointGroup:
+    EPG:
     - name: epg1
-      BridgeDomain@: bd1
+      BrDom@: bd1
+      Prov@:
+      - test-ctr
+      Path@:
+      - Pod@: '1'
+        Node@: '101'
+        Intf@: eth1/14
+        encap: vlan-1004
     - name: epg2
-      BridgeDomain@: bd1
+      BrDom@: bd1
+      Cons@:
+      - test-ctr
