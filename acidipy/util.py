@@ -139,25 +139,25 @@ def deploy_aci(desc, verbose=False, debug=False):
     def recursive_delete(obj):
         children = obj.children()
         for child in children:
-            if isinstance(child, VRFObject): recursive_delete(child)
+            if isinstance(child, ContractObject): recursive_delete(child)
+            elif isinstance(child, VRFObject): recursive_delete(child)
             elif isinstance(child, BrDomObject): recursive_delete(child)
             elif isinstance(child, SubnetObject): recursive_delete(child)
             elif isinstance(child, AppProfObject): recursive_delete(child)
             elif isinstance(child, EPGObject): recursive_delete(child)
-            elif isinstance(child, VRFObject): recursive_delete(child)
         
-        if isinstance(obj, VRFObject):
+        if isinstance(obj, ContractObject):
+            if obj['dn'] not in ctr_objs: object_delete(obj)
+        elif isinstance(obj, VRFObject):
             if obj['dn'] not in ctx_objs: object_delete(obj)
         elif isinstance(obj, BrDomObject):
             if obj['dn'] not in bd_objs: object_delete(obj)
-        elif isinstance(obj, SubnetObject):
-            if obj['dn'] not in sn_objs: object_delete(obj)
         elif isinstance(obj, AppProfObject):
             if obj['dn'] not in ap_objs: object_delete(obj)
+        elif isinstance(obj, SubnetObject):
+            if obj['dn'] not in sn_objs: object_delete(obj)
         elif isinstance(obj, EPGObject):
             if obj['dn'] not in epg_objs: object_delete(obj)
-        elif isinstance(obj, VRFObject):
-            if obj['dn'] not in ctx_objs: object_delete(obj)
         
     for tenant in tenant_list:
         try: tenant_obj = dom.Tenant(tenant['name'])
