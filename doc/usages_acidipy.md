@@ -1,6 +1,6 @@
 # Acidipy Library
 
-![Inheritance](inheritance.png)
+![Inheritance](Inheritance.png)
 
 ### Controller
 
