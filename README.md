@@ -60,6 +60,10 @@ Parameters
 	print tenant.AppProfile('example-ap').EPG.list() # Retrive list of endpoint group about tenant created
 	print ap.EPG('example-epg') # Retrive endpoing group by name
 	
+	print ap.parent() # Retrive example-ap's parent
+	print ap.children() # Retrive example-ap's children
+	pirnt ap.detail() # Retrive example-ap's whole attributes
+	
 	epg.delete() # Delete endpoint group
 	ap.delete() # Delete application profile
 	bd.delete() # Delete bridge domain
