@@ -70,5 +70,7 @@ Parameters
 ## Usages
 
 see Acidipy Library [here](doc/usages_acidipy.md)
+
 see Ansible Module [here](doc/usages_ansible.md)
+
 see Binary Tools [here](doc/usages_bintools.md)
