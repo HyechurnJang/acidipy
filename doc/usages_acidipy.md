@@ -7,70 +7,64 @@ Object : ACI Instance operator of Class with APIC Rest /api/mo/~
 
 ## Actor Abstraction
 
-### Acidipy
+### AcidipyActor
 
-#### AcidipyActor
+#### Allocation
 
-##### Allocation
+Grammar : **ACTOR_CLASS()**
 
-**Grammar** : **ACTOR_CLASS()**
+#### Retrive list of instance by class name
 
-##### Retrive list of instance by class name
-
-**Grammar** : ACTOR_INSTANCE.**list()**
+Grammar : ACTOR_INSTANCE.**list()**
 
 	def list(self, detail=False, sort=None, page=None, **clause)
 
-##### Retrive a instance by target DN
+#### Retrive a instance by target DN
 
-**Grammar** : ACTOR_INSTANCE**()**
+Grammar : ACTOR_INSTANCE**()**
 
 	def __call__(self, detail=False)
 
-##### Retrive counts by class name
+#### Retrive counts by class name
 
-**Grammar** : ACTOR_INSTANCE.**count()**
+Grammar : ACTOR_INSTANCE.**count()**
 
 	def count(self)
 
-#### AcidipyActorHealth
+### AcidipyActorHealth
 
-##### Retrive list of health data by class name
+#### Retrive list of health data by class name
 
-**Grammar** : ACTOR_INSTANCE.**health()**
+Grammar : ACTOR_INSTANCE.**health()**
 
 	def health(self)
 
-#### AcidipyActorCreate
+### AcidipyActorCreate
 
-##### Create a instance by class name
+#### Create a instance by class name
 
-**Grammar** : ACTOR_INSTANCE.**create()**
+Grammar : ACTOR_INSTANCE.**create()**
 
 	def create(self, **attributes)
 
-### Controller
+### ControllerActor
 
-#### ControllerActor
+#### Allocation
 
-##### Allocation
-
-#####
-
-#### ControllerActorHealth
+### ControllerActorHealth
 
 
 ## Object Abstraction
 
-#### AcidipyObject
+### AcidipyObject
 
-#### AcidipyObjectHealth
+### AcidipyObjectHealth
 
-#### AcidipyObjectModify
+### AcidipyObjectModify
 
-#### AcidipyObjectParent
+### AcidipyObjectParent
 
-#### AcidipyObjectChildren
+### AcidipyObjectChildren
 
 
 
