@@ -9,7 +9,7 @@ import json
 import yaml
 import argparse
 
-from acidipy import deploy_aci
+from acidipy import deployACI
 
 if __name__ == '__main__':
     
@@ -36,4 +36,4 @@ if __name__ == '__main__':
             print 'parse', file_path, 'failed'
             exit(1)
      
-    deploy_aci(desc, verbose=verbose, debug=debug)
+    deployACI(desc, verbose=verbose, debug=debug)

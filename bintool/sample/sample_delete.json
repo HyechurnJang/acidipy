@@ -1,11 +1,12 @@
 {
-	"Domain": {
+	"Controller": {
 		"ip": "X.X.X.X",
 		"user": "cisco",
 		"pwd": "cisco123"
 	},
 	"Option": {
-		"deleteEmptyTenant" : true
+		"deleteEmptyTenant" : true,
+		"deployIncremental": false
 	},
 	"Tenant": [
 		{

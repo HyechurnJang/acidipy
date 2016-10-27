@@ -1,29 +1,55 @@
 {
-	"Domain": {
+	"Controller": {
 		"ip": "X.X.X.X",
 		"user": "cisco",
 		"pwd": "cisco123"
 	},
 	"Option": {
-		"deleteEmptyTenant": true
+		"deleteEmptyTenant": true,
+		"deployIncremental": true
 	},
 	"Tenant": [
 		{
 			"name": "hyjang-test",
-			"Contract": [
+			"Filter": [
 				{
-					"name": "test-ctr"
+					"name": "filter1",
+					"FilterEntry": [
+						{
+							"name": "entry1"
+						}
+					]
 				}
 			],
-			"VRF": [
+			"Contract": [
+				{
+					"name": "test-ctr",
+					"Subject": [
+						{
+							"name": "subject1",
+							"Filter": [
+								"filter1"
+							]
+						}
+					]
+				}
+			],
+			"Context": [
 				{
 					"name": "router1"
 				}
 			],
-			"BrDom": [
+			"L3External": [
+				{
+					"name": "external1",
+					"Context": "router1"
+				}
+			],
+			"BridgeDomain": [
 				{
 					"name": "bd1",
-					"VRF@": "router1",
+					"Context": "router1",
+					"L3External": "external1",
 					"Subnet": [
 						{
 							"name": "subnet1",
@@ -37,29 +63,29 @@
 					]
 				}
 			],
-			"AppProf": [
+			"AppProfile": [
 				{
 					"name": "app1",
 					"EPG": [
 						{
 							"name": "epg1",
-							"BrDom@": "bd1",
-							"Prov@": [
+							"BridgeDomain": "bd1",
+							"Provide": [
 								"test-ctr"
 							],
-							"Path@": [
+							"Path": [
 								{
-									"Pod@": "1",
-									"Node@": "101",
-									"Intf@": "eth1/14",
+									"Pod": "1",
+									"Node": "101",
+									"Intf": "eth1/14",
 									"encap": "vlan-1004"
 								}
 							]
 						},
 						{
 							"name": "epg2",
-							"BrDom@": "bd1",
-							"Cons@": [
+							"BridgeDomain": "bd1",
+							"Consume": [
 								"test-ctr"
 							]
 						}

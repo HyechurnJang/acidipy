@@ -1,38 +1,51 @@
 ---
-Domain:
+Controller:
   ip: X.X.X.X
   user: cisco
   pwd: cisco123
 Option:
   deleteEmptyTenant: true
+  deployIncremental: true
 Tenant:
 - name: hyjang-test
+  Filter:
+  - name: filter1
+    FilterEntry:
+    - name: entry1
   Contract:
   - name: test-ctr
-  VRF:
+    Subject:
+    - name: subject1
+      Filter:
+      - filter1
+  Context:
   - name: router1
-  BrDom:
+  L3External:
+  - name: external1
+    Context: router1
+  BridgeDomain:
   - name: bd1
-    VRF@: router1
+    Context: router1
+    L3External: external1
     Subnet:
     - name: subnet1
       ip: 10.1.1.1/24
       scope: public
     - name: subnet2
       ip: 10.1.2.1/24
-  AppProf:
+  AppProfile:
   - name: app1
     EPG:
     - name: epg1
-      BrDom@: bd1
-      Prov@:
+      BridgeDomain: bd1
+      Provide:
       - test-ctr
-      Path@:
-      - Pod@: '1'
-        Node@: '101'
-        Intf@: eth1/14
+      Path:
+      - Pod: '1'
+        Node: '101'
+        Intf: eth1/14
         encap: vlan-1004
     - name: epg2
-      BrDom@: bd1
-      Cons@:
+      BridgeDomain: bd1
+      Consume:
       - test-ctr

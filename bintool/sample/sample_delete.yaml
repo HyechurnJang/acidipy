@@ -1,9 +1,10 @@
 ---
-Domain:
+Controller:
   ip: X.X.X.X
   user: cisco
   pwd: cisco123
 Option:
   deleteEmptyTenant: true
+  deployIncremental: false
 Tenant:
 - name: hyjang-test
