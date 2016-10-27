@@ -3,7 +3,7 @@ Cisco ACI Python API
 
 **ACI** **D**eveloping **I**nterface for **PY**thon
 
-version : 0.9 Beta
+version : 0.9.1
 
 ![Relations](./doc/object_relation.png)
 
@@ -11,25 +11,25 @@ version : 0.9 Beta
 
 **Prepared Objects**
 
-| ACI Object Name | Acidipy Object Name | Description |
-|-----------------|---------------------|-------------|
-| fvTenant | TenantObject | Tenant |
-| vzFilter | FilterObject | Filter |
-| vzBrCP | ContractObject | Contract |
-| fvCtx | ContextObject | Virtual Routing and Forwarding (VRF) |
-| l3extOut | L3ExternalObject | L3 External |
-| fvBD | BridgeDomainObject | Bridge Domain |
-| fvAp | AppProfileObject | Appliation Profile |
-| vzEntry | FilterEntryObject | Filter Entry |
-| vzSubj | SubjectObject | Subject of Contract |
-| fvSubnet | SubnetObject | Subnet |
-| fvAEPg | EPGObject | Endpoint Group |
-| fvCEp | EndpointObject | Endpoint |
-| fabricPod | PodObject | Pod |
-| fabricNode | NodeObject | ACI Node |
-| fabricPathEpCont | PathsObject | Path Endpoint Container |
-| fabricProtPathEpCont | VPathsObject | Protected Path Endpoint Container |
-| fabricPathEp | PathObject | Path Endpoint |
+| ACI Object Name | Acidipy Object Name | Reserved Code Name | Description |
+|-----------------|---------------------|--------------------|-------------|
+| fvTenant | TenantObject | Tenant | Tenant |
+| fvCtx | ContextObject | Context | Virtual Routing and Forwarding (VRF) |
+| fvBD | BridgeDomainObject | BridgeDomain | Bridge Domain |
+| fvAp | AppProfileObject | AppProfile | Appliation Profile |
+| fvSubnet | SubnetObject | Subnet | Subnet |
+| fvAEPg | EPGObject | EPG | Endpoint Group |
+| fvCEp | EndpointObject | Endpoint | Endpoint |
+| fabricPod | PodObject | Pod | Pod |
+| fabricNode | NodeObject | Node | ACI Node |
+| fabricPathEpCont | PathsObject | Paths | Path Endpoint Container |
+| fabricProtPathEpCont | VPathsObject | VPaths | Protected Path Endpoint Container |
+| fabricPathEp | PathObject | Path | Path Endpoint |
+| vzFilter | FilterObject | Filter | Filter |
+| vzBrCP | ContractObject | Contract | Contract |
+| vzEntry | FilterEntryObject | FilterEntry | Filter Entry |
+| vzSubj | SubjectObject | Subject | Subject of Contract |
+| l3extOut | L3ExternalObject | L3External | L3 External |
 
 **And Retrive Anything with Controller Object**
 
@@ -62,7 +62,7 @@ Parameters
 	
 	print ap.parent() # Retrive example-ap's parent
 	print ap.children() # Retrive example-ap's children
-	pirnt ap.detail() # Retrive example-ap's whole attributes
+	print ap.detail() # Retrive example-ap's whole attributes
 	
 	epg.delete() # Delete endpoint group
 	ap.delete() # Delete application profile
