@@ -2,7 +2,12 @@
 
 ![Inheritance](Inheritance.png)
 
-### Controller
+Actor : ACI Class operator with APIC Rest /api/node/class/~
+Object : ACI Instance operator of Class with APIC Rest /api/mo/~
+
+## Actor Type
+
+### Acidipy Actor
 
 #### Allocation
 
