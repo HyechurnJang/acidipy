@@ -205,6 +205,17 @@ class PathActor(AcidipyActor):
     
 class PhysIfActor(AcidipyActor):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'l1PhysIf', 'id', '/phys-[%s]')
+    def health(self):
+        url = '/api/node/class/healthInst.json?query-target-filter=wcard(healthInst.dn,"phys/health")'
+        data = self.controller.get(url)
+        ret = []
+        for d in data:
+            for class_name in d:
+                attrs = d[class_name]['attributes']
+                if self.parent['dn'] in attrs['dn']:
+                    obj = {'dn' : attrs['dn'].replace('/phys/health', ''), 'name' : attrs['dn'].split('[')[1].replace(']/phys/health', ''), 'score' : int(attrs['cur'])}
+                    ret.append(obj)
+        return ret
 
 #===============================================================================
 # Controller Actor
@@ -326,6 +337,16 @@ class ControllerSystemActor(ControllerActor, SubscribeActor):
 
 class ControllerPhysIfActor(ControllerActor, SubscribeActor):
     def __init__(self, controller): ControllerActor.__init__(self, controller, 'l1PhysIf')
+    def health(self):
+        url = '/api/node/class/healthInst.json?query-target-filter=wcard(healthInst.dn,"phys/health")'
+        data = self.controller.get(url)
+        ret = []
+        for d in data:
+            for class_name in d:
+                attrs = d[class_name]['attributes']
+                obj = {'dn' : attrs['dn'].replace('/phys/health', ''), 'name' : attrs['dn'].split('[')[1].replace(']/phys/health', ''), 'score' : int(attrs['cur'])}
+                ret.append(obj)
+        return ret
 
 ########################################################################################
 #  ________  ________  ________  _________  ________  ________  ________ _________   
