@@ -6,7 +6,7 @@ Created on 2016. 10. 11.
 @author: "comfact"
 '''
 
-import json
+import yaml
 from ansible.module_utils.basic import *
 from acidipy import deployACI
 
@@ -37,9 +37,8 @@ def main():
         supports_check_mode = True
     )
     
-#     result = dict(description=module.params['description'])
-
     desc = module.params['description']
+    desc = yaml.load(desc)
     
     if isinstance(desc, dict):
         try: result = deployACI(module.params['description'])
