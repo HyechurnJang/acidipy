@@ -37,7 +37,9 @@ def main():
         supports_check_mode = True
     )
     
-    desc = json.loads(module.params['description'])
+    json_desc = module.params['description'].replace("'", '"')
+    
+    desc = json.loads(json_desc)
     
     result = dict(description=desc)
     
