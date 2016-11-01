@@ -1,0 +1,39 @@
+#!/usr/bin/python
+'''
+Created on 2016. 10. 11.
+
+@author: "comfact"
+'''
+
+import json
+import yaml
+import argparse
+
+from acidipy import deployACI
+
+if __name__ == '__main__':
+    
+    parser = argparse.ArgumentParser(description='ACI Provisining Tool')
+    parser.add_argument('-v', '--verbose', action='store_true', help='verbose option')
+    parser.add_argument('-d', '--debug', action='store_true', help='debug option')
+    parser.add_argument('file_path', metavar='FILE', type=str, help='description file formatted json or yaml')
+    args = parser.parse_args()
+    file_path = args.file_path
+    verbose = args.verbose
+    debug = args.debug
+    
+    try:
+        with open(file_path) as fd: lines = fd.readlines()
+    except:
+        print 'read', file_path, 'failed'
+        exit(1)
+    raw_desc = ''.join(lines)
+    
+    try: desc = json.loads(raw_desc)
+    except:
+        try: desc = yaml.load(raw_desc)
+        except:
+            print 'parse', file_path, 'failed'
+            exit(1)
+     
+    deployACI(desc, verbose=verbose, debug=debug)
