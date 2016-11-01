@@ -42,7 +42,7 @@ def install(args):
         if os.path.exists('/usr/bin/acibuilder') and args.force:
             os.system('rm -rf /usr/bin/acibuilder')
         try: shutil.copy('./bintool/acibuilder', '/usr/bin/acibuilder')
-        except: continue
+        except: pass
     
     #===========================================================================
     # Install Ansible Module
@@ -54,7 +54,7 @@ def install(args):
         if os.path.exists(ansible_acibuilder) and args.force:
             os.system('rm -rf ' + ansible_acibuilder)
         try: shutil.copy('./ansible/acibuilder.py', ansible_acibuilder)
-        except: continue
+        except: pass
 
 def uninstall(args):
     for path in sys.path:
