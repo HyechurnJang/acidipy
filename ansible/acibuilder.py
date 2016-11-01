@@ -37,14 +37,10 @@ def main():
         supports_check_mode = True
     )
     
-    json_desc = module.params['description'].replace("'", '"')
+#     result = dict(description=module.params['description'])
     
-    desc = json.loads(json_desc)
-    
-    result = dict(description=desc)
-    
-#     try: result = deployACI(module.params['description'])
-#     except Exception as e: result = {'Error' : str(e)}
+    try: result = deployACI(module.params['description'])
+    except Exception as e: result = {'Error' : str(e)}
     module.exit_json(**result)
 
 main()
