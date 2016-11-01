@@ -47,9 +47,9 @@ def install(args):
     #===========================================================================
     # Install Ansible Module
     #===========================================================================
-    print 'Install Ansible Module'
     ansible_library = python_library + '/ansible/modules/extras/network'
     ansible_acibuilder = ansible_library + '/acibuilder.py'
+    print 'Install Ansible Module :', ansible_acibuilder
     if os.path.exists(ansible_library):
         if os.path.exists(ansible_acibuilder) and args.force:
             os.system('rm -rf ' + ansible_acibuilder)

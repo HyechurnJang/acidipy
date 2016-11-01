@@ -35,6 +35,13 @@ version : 0.9.1
 
 ## Install
 
+**Centos 7**
+
+	yum install python-websocket-client
+	pip install requests
+
+**Acidipy**
+
 	$ install
 	
 Parameters
