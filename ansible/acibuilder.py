@@ -36,8 +36,10 @@ def main():
         supports_check_mode = True
     )
     
-    try: result = deployACI(module.params['description'])
-    except Exception as e: result = {'Error' : str(e)}
+    result = dict(description=module.params['description'])
+    
+#     try: result = deployACI(module.params['description'])
+#     except Exception as e: result = {'Error' : str(e)}
     module.exit_json(**result)
 
 main()
