@@ -7,7 +7,7 @@ Created on 2016. 10. 11.
 '''
 
 from ansible.module_utils.basic import *
-from acidipy import *
+from acidipy import deployACI
 
 DOCUMENTATION = '''
 ---
@@ -30,13 +30,12 @@ ansible webservers -m ping
 def main():
     module = AnsibleModule(
         argument_spec = dict(
-            data=dict(required=False, default=None),
+            description=dict(required=True)
         ),
         supports_check_mode = True
     )
-    result = dict(ping='pong')
-    if module.params['data']:
-        result['ping'] = module.params['data']
+    
+    result = deployACI(module.params['description'])
     module.exit_json(**result)
 
 main()

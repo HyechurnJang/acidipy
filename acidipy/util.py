@@ -22,7 +22,7 @@ def deployACI(desc, verbose=False, debug=False):
     except: deploy_incremental = False
     
     try:
-        dom = Controller(dom_ip, dom_user, dom_pwd, debug)
+        dom = Controller(dom_ip, dom_user, dom_pwd, debug=debug)
     except:
         if verbose: print 'Connection Failed :', dom_ip, dom_user, dom_pwd, '\n'
         exit(1)
@@ -234,3 +234,15 @@ def deployACI(desc, verbose=False, debug=False):
                 object_delete(tenant_obj)
     
     dom.close()
+    
+    return {'Tenant' : tenant_objs.keys(),
+            'Filter' : flt_objs.keys(),
+            'Contract' : ctr_objs.keys(),
+            'Context' : ctx_objs.keys(),
+            'L3External' : l3e_objs.keys(),
+            'BridgeDomain' : bd_objs.keys(),
+            'FilterEntry' : fe_objs.keys(),
+            'Subject' : sj_objs.keys(),
+            'Subnet' : sn_objs.keys(),
+            'AppProfile' : ap_objs.keys(),
+            'EPG' : epg_objs.keys()}
