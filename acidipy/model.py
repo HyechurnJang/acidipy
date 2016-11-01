@@ -168,9 +168,31 @@ class EndpointActor(AcidipyActor, AcidipyActorCreate):
 
 class PodActor(AcidipyActor, SubscribeActor):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fabricPod', 'id', '/pod-%s')
+    def health(self):
+        url = '/api/node/class/fabricHealthTotal.json?query-target-filter=ne(fabricHealthTotal.dn,"topology/health")'
+        data = self.controller.get(url)
+        ret = []
+        for d in data:
+            for class_name in d:
+                attrs = d[class_name]['attributes']
+                if self.parent['dn'] in attrs['dn']:
+                    obj = {'dn' : attrs['dn'].repalce('/health', ''), 'name' : attrs['dn'].split('/')[1].replace('pod-', ''), 'score' : int(attrs['cur'])}
+                    ret.append(obj)
+        return ret
 
 class NodeActor(AcidipyActor):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fabricNode', 'id', '/node-%s')
+    def health(self):
+        url = '/api/node/class/healthInst.json?query-target-filter=wcard(healthInst.dn,"^sys/health")'
+        data = self.controller.get(url)
+        ret = []
+        for d in data:
+            for class_name in d:
+                attrs = d[class_name]['attributes']
+                if self.parent['dn'] in attrs['dn']:
+                    obj = {'dn' : attrs['dn'].repalce('/sys/health', ''), 'name' : attrs['dn'].split('/')[2].replace('node-', ''), 'score' : int(attrs['cur'])}
+                    ret.append(obj)
+        return ret
     
 class PathsActor(AcidipyActor):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fabricPathEpCont', 'nodeId', '/paths-%s')
@@ -180,6 +202,9 @@ class VPathsActor(AcidipyActor):
 
 class PathActor(AcidipyActor):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fabricPathEp', 'name', '/pathep-[%s]')
+    
+class PhysIfActor(AcidipyActor):
+    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'l1PhysIf', 'id', '/phys-[%s]')
 
 #===============================================================================
 # Controller Actor
@@ -276,7 +301,17 @@ class ControllerEndpointActor(ControllerActor, SubscribeActor):
     
 class ControllerNodeActor(ControllerActor, SubscribeActor):
     def __init__(self, controller): ControllerActor.__init__(self, controller, 'fabricNode')
-    
+    def health(self):
+        url = '/api/node/class/healthInst.json?query-target-filter=wcard(healthInst.dn,"^sys/health")'
+        data = self.controller.get(url)
+        ret = []
+        for d in data:
+            for class_name in d:
+                attrs = d[class_name]['attributes']
+                obj = {'dn' : attrs['dn'].repalce('/sys/health', ''), 'name' : attrs['dn'].split('/')[2].replace('node-', ''), 'score' : int(attrs['cur'])}
+                ret.append(obj)
+        return ret
+
 class ControllerPathsActor(ControllerActor, SubscribeActor):
     def __init__(self, controller): ControllerActor.__init__(self, controller, 'fabricPathEpCont')
 
@@ -285,6 +320,12 @@ class ControllerVPathsActor(ControllerActor, SubscribeActor):
 
 class ControllerPathActor(ControllerActor, SubscribeActor):
     def __init__(self, controller): ControllerActor.__init__(self, controller, 'fabricPathEp')
+
+class ControllerSystemActor(ControllerActor, SubscribeActor):
+    def __init__(self, controller): ControllerActor.__init__(self, controller, 'topSystem')
+
+class ControllerPhysIfActor(ControllerActor, SubscribeActor):
+    def __init__(self, controller): ControllerActor.__init__(self, controller, 'l1PhysIf')
 
 ########################################################################################
 #  ________  ________  ________  _________  ________  ________  ________ _________   
@@ -514,8 +555,20 @@ class PodObject(AcidipyObject, AcidipyObjectChildren):
         self.Paths = PathsActor(self)
         self.VPaths = VPathsActor(self)
 
-class NodeObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren): pass
+class NodeObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren):
+    
+    def __patch__(self):
+        if self.is_detail: self.System = SystemObject(**self.controller(self['dn'] + '/sys', detail=self.is_detail))
+        else: self.System = SystemObject(dn=self['dn'] + '/sys')
+        self.System.controller = self.controller
+        self.System.is_detail = self.is_detail
+        self.System.__patch__()
 
+class SystemObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren):
+        
+    def __patch__(self):
+        self.PhysIf = PhysIfActor(self)
+        
 class PathsObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren):
     
     def __patch__(self):
@@ -527,6 +580,8 @@ class VPathsObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren):
         self.Path = PathActor(self)
 
 class PathObject(AcidipyObject, AcidipyObjectParent): pass
+
+class PhysIfObject(AcidipyObject, AcidipyObjectParent): pass
         
 
 #############################################################################################################
@@ -719,6 +774,8 @@ class Controller(Session, AcidipyObject, SchedTask):
         self.Paths = ControllerPathsActor(self)
         self.VPaths = ControllerVPathsActor(self)
         self.Path = ControllerPathActor(self)
+        self.System = ControllerSystemActor(self)
+        self.PhysIf = ControllerPhysIfActor(self)
         
         self.scheduler.register(self)
         self.scheduler.register(self.subscriber)
@@ -732,6 +789,15 @@ class Controller(Session, AcidipyObject, SchedTask):
     def sched(self): self.refresh()
         
     def detail(self): return self
+    
+    def health(self):
+        url = '/api/node/class/fabricHealthTotal.json?query-target-filter=eq(fabricHealthTotal.dn,"topology/health")'
+        data = self.get(url)
+        for d in data:
+            for class_name in d:
+                attrs = d[class_name]['attributes']
+                return {'dn' : 'topology', 'name' : 'Total', 'score' : int(attrs['cur'])}
+        raise AcidipyNonExistHealth('topology')
 
     def Class(self, class_name):
         return ControllerActor(self, class_name)

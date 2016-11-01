@@ -30,23 +30,25 @@ version : 0.9.1
 | vzEntry | FilterEntryObject | FilterEntry | Filter Entry |
 | vzSubj | SubjectObject | Subject | Subject of Contract |
 | l3extOut | L3ExternalObject | L3External | L3 External |
+| topSystem | SystemObject | System | Node System Details |
+| l1PhysIf | PhysIfObject | PhysIf | Physical Interfaces |
 
 **And Retrive Anything with Controller Object**
 
 ## Install
 
-**Centos 7**
+**Dependency**
 
-	yum install python-websocket-client
-	pip install requests
+- Pacakge Manager (Yum, Apt)
+    - websocket
+- Python (PIP)
+    - requests
 
 **Acidipy**
 
 	$ install
 	
 Parameters
-- -a : install ansible module # Not yet
-- -b : install binary tool
 - -f : force install
 - -r : remove acidipy & packages
 

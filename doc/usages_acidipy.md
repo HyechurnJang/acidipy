@@ -27,10 +27,11 @@ Object : ACI Instance operator of Class with APIC Rest /api/mo/~
 - EPG
 - Endpoint
 - Pod
-- Node
+- Node(Include System)
 - Paths
 - VPaths
 - Path
+- PhysIf
 
 #### Retrive list of instance by actor name within parent's scope
 
@@ -112,6 +113,8 @@ Return : Target instance created
 - Paths
 - VPaths
 - Path
+- System
+- PhysIf
 
 #### Retrive list of instance by actor name
 

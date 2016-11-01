@@ -74,5 +74,7 @@ PREPARE_CLASSES = {
    'fabricNode' :           'NodeObject',
    'fabricPathEpCont' :     'PathsObject',
    'fabricProtPathEpCont' : 'VPathsObject',
-   'fabricPathEp' :         'PathObject'
+   'fabricPathEp' :         'PathObject',
+   'topSystem' :            'SystemObject',
+   'l1PhysIf' :             'PhysIfObject'
 }
