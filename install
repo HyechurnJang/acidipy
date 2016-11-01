@@ -59,6 +59,7 @@ def install(args):
 
 def uninstall(args):
     for path in sys.path:
+        if 'lib64' in path: continue
         if 'site-packages' in path: python_library = path; break
         elif 'dist-packages' in path: python_library = path; break
     else:
