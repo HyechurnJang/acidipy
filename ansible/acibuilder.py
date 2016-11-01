@@ -28,6 +28,7 @@ ansible webservers -m ping
 '''
 
 def main():
+    
     module = AnsibleModule(
         argument_spec = dict(
             description=dict(required=True)
@@ -35,7 +36,8 @@ def main():
         supports_check_mode = True
     )
     
-    result = deployACI(module.params['description'])
+    try: result = deployACI(module.params['description'])
+    except Exception as e: result = {'Error' : str(e)}
     module.exit_json(**result)
 
 main()
