@@ -38,9 +38,14 @@ def main():
     )
     
 #     result = dict(description=module.params['description'])
+
+    desc = module.params['description']
     
-    try: result = deployACI(module.params['description'])
-    except Exception as e: result = {'Error' : str(e)}
+    if isinstance(desc, dict):
+        try: result = deployACI(module.params['description'])
+        except Exception as e: result = {'Error' : str(e)}
+    else:
+        result = {'error_desc' : desc}
     module.exit_json(**result)
 
 main()
