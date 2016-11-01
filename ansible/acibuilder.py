@@ -6,6 +6,7 @@ Created on 2016. 10. 11.
 @author: "comfact"
 '''
 
+import json
 from ansible.module_utils.basic import *
 from acidipy import deployACI
 
@@ -36,7 +37,9 @@ def main():
         supports_check_mode = True
     )
     
-    result = dict(description=module.params['description'])
+    desc = json.loads(module.params['description'])
+    
+    result = dict(description=desc)
     
 #     try: result = deployACI(module.params['description'])
 #     except Exception as e: result = {'Error' : str(e)}
