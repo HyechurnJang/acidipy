@@ -16,6 +16,8 @@ class AcidipyError(Exception):
 
 class AcidipySessionError(Exception): pass
 
+class AcidipySubscriptionError(Exception): pass
+
 class AcidipyNonExistData(Exception):
     def __init__(self, target_name): self.target_name = target_name
     def __str__(self): return 'Non exist data of %s' % self.target_name

@@ -11,21 +11,26 @@ from .static import *
 
 class Session:
     
-    def __init__(self, ip, user, pwd, debug=False, week=False):
+    def __init__(self, ip, user, pwd, conns=1, conn_max=2, debug=False, week=False):
         try: requests.packages.urllib3.disable_warnings()
         except: pass
         self.debug = debug
         self.week = week
-        self.session = requests.Session()
         self.url = 'https://%s' % ip
-        login_url = self.url + '/api/aaaLogin.json'
-        data = {'aaaUser': {'attributes': {'name': user, 'pwd': pwd}}}
-        resp = self.session.post(login_url, data=json.dumps(data, sort_keys=True), verify=False)
+        self.session = requests.Session()
+        self.session.mount('https://', requests.adapters.HTTPAdapter(pool_connections=conns, pool_maxsize=conn_max))
+        resp = self.session.post(self.url + '/api/aaaLogin.json', data=json.dumps({'aaaUser': {'attributes': {'name': user, 'pwd': pwd}}}, sort_keys=True), verify=False)
         if not resp.status_code == 200: raise AcidipySessionError()
-        
+        self.token = resp.cookies['APIC-cookie']
+    
     def close(self):
         self.session.close()
-        
+    
+    def refresh(self):
+        resp = self.session.get(self.url + '/api/aaaRefresh.json')
+        if not resp.status_code == 200: raise AcidipySessionError()
+        self.token = resp.cookies['APIC-cookie']
+            
     def get(self, url):
         if self.debug:
             print 'GET :', url
