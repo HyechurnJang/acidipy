@@ -1,0 +1,13 @@
+- hosts: TARGET_HOST
+  tasks:
+  - name: Sample deploy deleting policy on ACI with acidipy
+    acibuilder:
+      Controller:
+        ip: CONTROLLER_IP
+        user: USER_ID
+        pwd: USER_PASSWORD
+      Option:
+        deleteEmptyTenant: true
+        deployIncremental: false
+      Tenant:
+      - name: ansible-test

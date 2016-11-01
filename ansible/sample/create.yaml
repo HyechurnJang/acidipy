@@ -1,0 +1,54 @@
+- hosts: TARGET_HOST
+  tasks:
+  - name: Sample deploy creating policy on ACI with acidipy
+    acibuilder:
+      Controller:
+        ip: CONTROLLER_IP
+        user: USER_ID
+        pwd: USER_PASSWORD
+      Option:
+        deleteEmptyTenant: true
+        deployIncremental: true
+      Tenant:
+      - name: ansible-test
+        Filter:
+        - name: test-filter
+          FilterEntry:
+          - name: test-entry
+        Contract:
+        - name: test-contract
+          Subject:
+          - name: test-subject
+            Filter:
+            - test-filter
+        Context:
+        - name: test-router
+        L3External:
+        - name: test-ext
+          Context: test-router
+        BridgeDomain:
+        - name: test-bd
+          Context: test-router
+          L3External: test-ext
+          Subnet:
+          - name: test-subnet1
+            ip: 10.1.1.1/24
+            scope: public
+          - name: test-subnet2
+            ip: 10.1.2.1/24
+        AppProfile:
+        - name: test-app
+          EPG:
+          - name: test-epg1
+            BridgeDomain: test-bd
+            Provide:
+            - test-contract
+            Path:
+            - Pod: '1'
+              Node: '101'
+              Intf: eth1/14
+              encap: vlan-1004
+          - name: test-epg2
+            BridgeDomain: test-bd
+            Consume:
+            - test-contract

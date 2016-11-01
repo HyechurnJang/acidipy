@@ -12,15 +12,13 @@ from acidipy import deployACI
 
 DOCUMENTATION = '''
 ---
-module: hyping
+module: acibuilder
 version_added: historical
-short_description: Try to connect to host and return C(pong) on success.
+short_description: acidipy ansible module.
 description:
-   - A trivial test module, this module always returns C(pong) on successful
-     contact. It does not make sense in playbooks, but it is useful from
-     C(/usr/bin/ansible)
+   - This is Acidipy Ansible Module named AciBuilder
 options: {}
-author: Michael DeHaan
+author: hyjang@cisco.com
 '''
 
 EXAMPLES = '''
@@ -29,22 +27,22 @@ ansible webservers -m ping
 '''
 
 def main():
-    
+
     module = AnsibleModule(
         argument_spec = dict(
-            description=dict(required=True)
+            Controller=dict(required=True),
+            Option=dict(required=True),
+            Tenant=dict(required=True)
         ),
         supports_check_mode = True
     )
     
-    desc = module.params['description']
-    desc = yaml.load(desc)
+    ctrl = yaml.load(module.params['Controller'])
+    opts = yaml.load(module.params['Option'])
+    tnts = yaml.load(module.params['Tenant'])
     
-    if isinstance(desc, dict):
-        try: result = deployACI(module.params['description'])
-        except Exception as e: result = {'Error' : str(e)}
-    else:
-        result = {'error_desc' : desc}
+    desc = {'Controller' : ctrl, 'Option' : opts, 'Tenant' : tnts}
+    result = deployACI(desc)
     module.exit_json(**result)
 
 main()
