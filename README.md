@@ -5,7 +5,7 @@ Cisco ACI Python API
 
 version : 0.9.1
 
-![Relations](./doc/object_relation.png)
+![Relations](./doc/Relation.png)
 
 ## Support Object
 
