@@ -39,18 +39,11 @@ version : 0.9.1
 
 **Dependency**
 
-- Pacakge Manager (Yum, Apt)
-    - websocket
-- Python (PIP)
-    - requests
+	$ pip install pyaml requests websocket-client
 
 **Acidipy**
 
-	$ install
-	
-Parameters
-- -f : force install
-- -r : remove acidipy & packages
+	$ python setup.py install
 
 ## Example Acidipy
 
