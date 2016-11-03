@@ -1,0 +1,33 @@
+acidipy
+Cisco ACI Python API
+
+ACI Developing Interface for PYthon
+
+Example
+
+	import acidipy
+	
+	controller = acidipy.Controller('10.72.86.21', 'admin', '1234Qwer', False) # Get controller connection
+	
+	tenant = controller.Tenant.create(name='example-tenant') # Create tenant
+	bd = tenant.BridgeDomain.create(name='example-bd') # Create bridge domain
+	ap = tenant.AppProfile.create(name='example-ap') # Create application profile
+	epg = ap.EPG.create(name='example-epg') # Create endpoint group
+	
+	epg.relate2BridgeDomain(bd) # Relate endpoint group to bridge domain
+	
+	print controller.Tenant.list() # Retrive list of tenant
+	print tenant.AppProfile('example-ap').EPG.list() # Retrive list of endpoint group about tenant created
+	print ap.EPG('example-epg') # Retrive endpoing group by name
+	
+	print ap.parent() # Retrive example-ap's parent
+	print ap.children() # Retrive example-ap's children
+	print ap.detail() # Retrive example-ap's whole attributes
+	
+	epg.delete() # Delete endpoint group
+	ap.delete() # Delete application profile
+	bd.delete() # Delete bridge domain
+	tenant.delete() # Delete tenant
+	
+	controller.close() # Close controller connection
+
