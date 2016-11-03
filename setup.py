@@ -6,11 +6,11 @@ def read(fname): return open(os.path.join(os.path.dirname(__file__), fname)).rea
 setup(
     name='acidipy',
     version='0.9.5',
-    license='Apache2.0',
+    license='Apache 2.0',
     author='Hyechurn Jang',
     author_email='hyjang@cisco.com',
     url='https://github.com/HyechurnJang/acidipy',
-    description='Acidipy',
+    description='ACI Developing Interface for PYthon',
     long_description=read('README'),
     packages=['acidipy'],
     install_requires=['pyaml', 'requests', 'websocket-client']
