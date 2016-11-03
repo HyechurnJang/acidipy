@@ -3,6 +3,11 @@ Cisco ACI Python API
 
 ACI Developing Interface for PYthon
 
+Install
+
+	$ python setup.py sdist
+	$ python setup.py install
+
 Example
 
 	import acidipy
