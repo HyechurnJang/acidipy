@@ -26,7 +26,12 @@ class SystemThread(threading.Thread):
     def stop(self):
         if self._tb_sw:
             self._tb_sw = False
-            self._stop()
+            try: self._Thread__stop()
+            except:
+                try: self._stop()
+                except:
+                    try: self.__stop()
+                    except: pass
             self.join()
         
     def run(self):
