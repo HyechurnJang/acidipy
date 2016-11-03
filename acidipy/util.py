@@ -28,6 +28,8 @@ def deployACI(desc, verbose=False, debug=False):
         exit(1)
     if verbose: print('Get Controller : %s, %s, %s\n' % (dom_ip, dom_user, dom_pwd))
     
+    common = dom.Tenant('common')
+    
     tenant_objs = {}
     flt_objs = {}
     ctr_objs = {}
@@ -146,35 +148,63 @@ def deployACI(desc, verbose=False, debug=False):
             for sj in sj_list:
                 if 'Filter' in sj:
                     for flt in sj['Filter']:
-                        tenant_sj_objs[sj['name']].relate2Filter(tenant_flt_objs[flt])
+                        try: tenant_sj_objs[sj['name']].relate2Filter(tenant_flt_objs[flt])
+                        except:
+                            try: tenant_sj_objs[sj['name']].relate2Filter(common.Filter(flt))
+                            except:
+                                if verbose: print('RELATE FAILED >> Subject:vzSubj.name=%s to Filter:vzFilter.name=%s\n' % (sj['name'], flt))
                         if verbose: print('RELATE >> Subject:vzSubj.name=%s to Filter:vzFilter.name=%s\n' % (sj['name'], flt))
         
         for l3e in l3e_list:
             if 'Context' in l3e:
-                tenant_l3e_objs[l3e['name']].relate2Context(tenant_ctx_objs[l3e['Context']])
+                try: tenant_l3e_objs[l3e['name']].relate2Context(tenant_ctx_objs[l3e['Context']])
+                except:
+                    try: tenant_l3e_objs[l3e['name']].relate2Context(common.Context(l3e['Context']))
+                    except:
+                        if verbose: print('RELATE FAILED>> L3External:l3extOut.name=%s to Context:fvCtx.name=%s\n' % (bd['name'], bd['Context']))
                 if verbose: print('RELATE >> L3External:l3extOut.name=%s to Context:fvCtx.name=%s\n' % (bd['name'], bd['Context']))
         
         for bd in bd_list:
             if 'Context' in bd:
-                tenant_bd_objs[bd['name']].relate2Context(tenant_ctx_objs[bd['Context']])
+                try: tenant_bd_objs[bd['name']].relate2Context(tenant_ctx_objs[bd['Context']])
+                except:
+                    try: tenant_bd_objs[bd['name']].relate2Context(common.Context(bd['Context']))
+                    except:
+                        if verbose: print('RELATE FAILED>> BridgeDomain:fvBD.name=%s to Context:fvCtx.name=%s\n' % (bd['name'], bd['Context']))
                 if verbose: print('RELATE >> BridgeDomain:fvBD.name=%s to Context:fvCtx.name=%s\n' % (bd['name'], bd['Context']))
             if 'L3External' in bd:
-                tenant_bd_objs[bd['name']].relate2L3External(tenant_l3e_objs[bd['L3External']])
+                try: tenant_bd_objs[bd['name']].relate2L3External(tenant_l3e_objs[bd['L3External']])
+                except:
+                    try: tenant_bd_objs[bd['name']].relate2L3External(common.L3External(bd['L3External']))
+                    except:
+                        if verbose: print('RELATE FAILED>> BridgeDomain:fvBD.name=%s to L3External:l3extOut.name=%s\n' % (bd['name'], bd['L3External']))
                 if verbose: print('RELATE >> BridgeDomain:fvBD.name=%s to L3External:l3extOut.name=%s\n' % (bd['name'], bd['L3External']))
                 
         for ap in ap_list:
             epg_list = ap['EPG'] if 'EPG' in ap and isinstance(ap['EPG'], list) else []
             for epg in epg_list:
                 if 'BridgeDomain' in epg:
-                    tenant_epg_objs[epg['name']].relate2BridgeDomain(tenant_bd_objs[epg['BridgeDomain']])
+                    try: tenant_epg_objs[epg['name']].relate2BridgeDomain(tenant_bd_objs[epg['BridgeDomain']])
+                    except:
+                        try: tenant_epg_objs[epg['name']].relate2BridgeDomain(common.BridgeDomain(epg['BridgeDomain']))
+                        except:
+                            if verbose: print('RELATE FAILED>> EPG:fvAEPg.name=%s to BridgeDomain:fvBD.name=%s\n' % (epg_obj['name'], epg['BridgeDomain']))
                     if verbose: print('RELATE >> EPG:fvAEPg.name=%s to BridgeDomain:fvBD.name=%s\n' % (epg_obj['name'], epg['BridgeDomain']))
                 if 'Consume' in epg:
                     for cons in epg['Consume']:
-                        tenant_epg_objs[epg['name']].relate2Consumer(tenant_ctr_objs[cons])
+                        try: tenant_epg_objs[epg['name']].relate2Consumer(tenant_ctr_objs[cons])
+                        except:
+                            try: tenant_epg_objs[epg['name']].relate2Consumer(common.Contract(cons))
+                            except:
+                                if verbose: print('RELATE FAILED>> EPG:fvAEPg.name=%s to Consume:vzBrCP.name=%s\n' % (epg_obj['name'], cons))
                         if verbose: print('RELATE >> EPG:fvAEPg.name=%s to Consume:vzBrCP.name=%s\n' % (epg_obj['name'], cons))
                 if 'Provide' in epg:
                     for prov in epg['Provide']:
-                        tenant_epg_objs[epg['name']].relate2Provider(tenant_ctr_objs[prov])
+                        try: tenant_epg_objs[epg['name']].relate2Provider(tenant_ctr_objs[prov])
+                        except:
+                            try: tenant_epg_objs[epg['name']].relate2Provider(common.Contract(prov))
+                            except:
+                                if verbose: print('RELATE FAILED>> EPG:fvAEPg.name=%s to Provide:vzBrCP.name=%s\n' % (epg_obj['name'], prov))
                         if verbose: print('RELATE >> EPG:fvAEPg.name=%s to Provide:vzBrCP.name=%s\n' % (epg_obj['name'], prov))
                 if 'Path' in epg:
                     for path in epg['Path']:
