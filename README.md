@@ -37,12 +37,7 @@ version : 0.9.5
 
 ## Install
 
-**Dependency**
-
-	$ pip install pyaml requests websocket-client
-
-**Acidipy**
-
+	$ python setup.py sdist
 	$ python setup.py install
 
 ## Example Acidipy
