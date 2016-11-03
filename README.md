@@ -3,9 +3,9 @@ Cisco ACI Python API
 
 **ACI** **D**eveloping **I**nterface for **PY**thon
 
-version : 0.9.6
+version : 0.9.7
 
-last change : support python3
+last change : upgrade deployACI to use common scope
 
 ![Relations](./doc/Relation.png)
 
