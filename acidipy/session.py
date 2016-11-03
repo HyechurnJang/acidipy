@@ -33,9 +33,9 @@ class Session:
             
     def get(self, url):
         if self.debug:
-            print 'GET :', url
+            print('GET : {}'.format(url))
             resp = self.session.get(self.url + url)
-            print 'CODE :', resp.status_code, '\n', resp.text
+            print('CODE : {}\n{}'.format(resp.status_code, resp.text))
         else:
             resp = self.session.get(self.url + url)
         if resp.status_code == 200: return resp.json()['imdata']
@@ -51,10 +51,10 @@ class Session:
     
     def post(self, url, data):
         if self.debug:
-            print 'POST :', url
-            print data
+            print('POST : {}'.format(url))
+            print(data)
             resp = self.session.post(self.url + url, data=data)
-            print 'CODE :', resp.status_code, '\n', resp.text
+            print('CODE : {}\n{}'.format(resp.status_code, resp.text))
         else:
             resp = self.session.post(self.url + url, data=data)
         if resp.status_code == 200: return True
@@ -70,10 +70,10 @@ class Session:
     
     def put(self, url, data):
         if self.debug:
-            print 'PUT :', url
-            print data
+            print('PUT : {}'.format(url))
+            print(data)
             resp = self.session.put(self.url + url, data=data)
-            print 'CODE :', resp.status_code, '\n', resp.text
+            print('CODE : {}\n{}'.format(resp.status_code, resp.text))
         else:
             resp = self.session.put(self.url + url, data=data)
         if resp.status_code == 200: return True
@@ -89,9 +89,9 @@ class Session:
     
     def delete(self, url):
         if self.debug:
-            print 'DELETE :', url
+            print('DELETE : {}'.format(url))
             resp = self.session.delete(self.url + url)
-            print 'CODE :', resp.status_code, '\n', resp.text
+            print('CODE : {}\n{}'.format(resp.status_code, resp.text))
         else:
             resp = self.session.delete(self.url + url)
         if resp.status_code == 200: return True

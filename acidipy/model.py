@@ -11,7 +11,8 @@ import json
 import threading
 
 from websocket import create_connection
-from Queue import Queue
+try: from Queue import Queue
+except: from queue import Queue
 
 from .session import Session
 from .static import *
@@ -725,7 +726,7 @@ class Subscriber(SystemThread, SchedTask):
                     for subscribe_id in subscribe_ids:
                         try: self.handlers[subscribe_id].subscribe(acidipy_obj['status'], acidipy_obj)
                         except Exception as e:
-                            if self.controller.debug: print 'Subscribe :', str(e)
+                            if self.controller.debug: print('Subscribe : {}'.format(str(e)))
                             continue
     
     def sched(self):

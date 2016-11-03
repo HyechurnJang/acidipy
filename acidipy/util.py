@@ -24,9 +24,9 @@ def deployACI(desc, verbose=False, debug=False):
     try:
         dom = Controller(dom_ip, dom_user, dom_pwd, debug=debug)
     except:
-        if verbose: print 'Connection Failed :', dom_ip, dom_user, dom_pwd, '\n'
+        if verbose: print('Connection Failed : %s, %s, %s\n' % (dom_ip, dom_user, dom_pwd))
         exit(1)
-    if verbose: print 'Get Controller :', dom_ip, dom_user, dom_pwd, '\n'
+    if verbose: print('Get Controller : %s, %s, %s\n' % (dom_ip, dom_user, dom_pwd))
     
     tenant_objs = {}
     flt_objs = {}
@@ -52,7 +52,7 @@ def deployACI(desc, verbose=False, debug=False):
     for tenant in tenant_list:
         tenant_obj = dom.Tenant.create(**parse_desc_unit(tenant))
         tenant_objs[tenant_obj['dn']] = tenant_obj
-        if verbose: print 'UPDATE >> fvTenant.dn=%s\n' % tenant_obj['dn']
+        if verbose: print('UPDATE >> fvTenant.dn=%s\n' % tenant_obj['dn'])
         
         tenant_flt_objs = {}
         tenant_ctr_objs = {}
@@ -71,70 +71,70 @@ def deployACI(desc, verbose=False, debug=False):
         flt_list = tenant['Filter'] if 'Filter' in tenant and isinstance(tenant['Filter'], list) else []
         for flt in flt_list:
             flt_obj = tenant_obj.Filter.create(**parse_desc_unit(flt))
-            if verbose: print 'UPDATE >> Filter:vzFilter.dn=%s\n' % flt_obj['dn']
+            if verbose: print('UPDATE >> Filter:vzFilter.dn=%s\n' % flt_obj['dn'])
             flt_objs[flt_obj['dn']] = flt_obj
             tenant_flt_objs[flt_obj['name']] = flt_obj
             
             fe_list = flt['FilterEntry'] if 'FilterEntry' in flt and isinstance(flt['FilterEntry'], list) else []
             for fe in fe_list:
                 fe_obj = flt_obj.FilterEntry.create(**parse_desc_unit(fe))
-                if verbose: print 'UPDATE >> FilterEntry:vzEntry.dn=%s\n' % fe_obj['dn']
+                if verbose: print('UPDATE >> FilterEntry:vzEntry.dn=%s\n' % fe_obj['dn'])
                 fe_objs[fe_obj['dn']] = fe_obj
                 tenant_fe_objs[fe_obj['name']] = fe_obj
         
         ctr_list = tenant['Contract'] if 'Contract' in tenant and isinstance(tenant['Contract'], list) else []
         for ctr in ctr_list:
             ctr_obj = tenant_obj.Contract.create(**parse_desc_unit(ctr))
-            if verbose: print 'UPDATE >> Contract:vzBrCP.dn=%s\n' % ctr_obj['dn']
+            if verbose: print('UPDATE >> Contract:vzBrCP.dn=%s\n' % ctr_obj['dn'])
             ctr_objs[ctr_obj['dn']] = ctr_obj
             tenant_ctr_objs[ctr_obj['name']] = ctr_obj
             
             sj_list = ctr['Subject'] if 'Subject' in ctr and isinstance(ctr['Subject'], list) else []
             for sj in sj_list:
                 sj_obj = ctr_obj.Subject.create(**parse_desc_unit(sj))
-                if verbose: print 'UPDATE >> Subject:vzSubj.dn=%s\n' % sj_obj['dn']
+                if verbose: print('UPDATE >> Subject:vzSubj.dn=%s\n' % sj_obj['dn'])
                 sj_objs[sj_obj['dn']] = sj_obj
                 tenant_sj_objs[sj_obj['name']] = sj_obj
         
         ctx_list = tenant['Context'] if 'Context' in tenant and isinstance(tenant['Context'], list) else []
         for ctx in ctx_list:
             ctx_obj = tenant_obj.Context.create(**parse_desc_unit(ctx))
-            if verbose: print 'UPDATE >> Context:fvCtx.dn=%s\n' % ctx_obj['dn']
+            if verbose: print('UPDATE >> Context:fvCtx.dn=%s\n' % ctx_obj['dn'])
             ctx_objs[ctx_obj['dn']] = ctx_obj
             tenant_ctx_objs[ctx_obj['name']] = ctx_obj
             
         l3e_list = tenant['L3External'] if 'L3External' in tenant and isinstance(tenant['L3External'], list) else []
         for l3e in l3e_list:
             l3e_obj = tenant_obj.L3External.create(**parse_desc_unit(l3e))
-            if verbose: print 'UPDATE >> L3External:l3extOut.dn=%s\n' % l3e_obj['dn']
+            if verbose: print('UPDATE >> L3External:l3extOut.dn=%s\n' % l3e_obj['dn'])
             l3e_objs[l3e_obj['dn']] = l3e_obj
             tenant_l3e_objs[l3e_obj['name']] = l3e_obj
         
         bd_list = tenant['BridgeDomain'] if 'BridgeDomain' in tenant and isinstance(tenant['BridgeDomain'], list) else []
         for bd in bd_list:
             bd_obj = tenant_obj.BridgeDomain.create(**parse_desc_unit(bd))
-            if verbose: print 'UPDATE >> BridgeDomain:fvBD.dn=%s\n' % bd_obj['dn']
+            if verbose: print('UPDATE >> BridgeDomain:fvBD.dn=%s\n' % bd_obj['dn'])
             bd_objs[bd_obj['dn']] = bd_obj
             tenant_bd_objs[bd_obj['name']] = bd_obj
             
             sn_list = bd['Subnet'] if 'Subnet' in bd and isinstance(bd['Subnet'], list) else []
             for sn in sn_list:
                 sn_obj = bd_obj.Subnet.create(**parse_desc_unit(sn))
-                if verbose: print 'UPDATE >> Subnet:fvSubnet.dn=%s\n' % sn_obj['dn']
+                if verbose: print('UPDATE >> Subnet:fvSubnet.dn=%s\n' % sn_obj['dn'])
                 sn_objs[sn_obj['dn']] = sn_obj
                 tenant_sn_objs[sn_obj['name']] = sn_obj
         
         ap_list = tenant['AppProfile'] if 'AppProfile' in tenant and isinstance(tenant['AppProfile'], list) else []
         for ap in ap_list:
             ap_obj = tenant_obj.AppProfile.create(**parse_desc_unit(ap))
-            if verbose: print 'UPDATE >> AppProfile:fvAp.dn=%s\n' % ap_obj['dn']
+            if verbose: print('UPDATE >> AppProfile:fvAp.dn=%s\n' % ap_obj['dn'])
             ap_objs[ap_obj['dn']] = ap_obj
             tenant_ap_objs[ap_obj['name']] = ap_obj
             
             epg_list = ap['EPG'] if 'EPG' in ap and isinstance(ap['EPG'], list) else []
             for epg in epg_list:
                 epg_obj = ap_obj.EPG.create(**parse_desc_unit(epg))
-                if verbose: print 'UPDATE >> EPG:fvAEPg.dn=%s\n' % epg_obj['dn']
+                if verbose: print('UPDATE >> EPG:fvAEPg.dn=%s\n' % epg_obj['dn'])
                 epg_objs[epg_obj['dn']] = epg_obj
                 tenant_epg_objs[epg_obj['name']] = epg_obj
         
@@ -147,40 +147,40 @@ def deployACI(desc, verbose=False, debug=False):
                 if 'Filter' in sj:
                     for flt in sj['Filter']:
                         tenant_sj_objs[sj['name']].relate2Filter(tenant_flt_objs[flt])
-                        if verbose: print 'RELATE >> Subject:vzSubj.name=%s to Filter:vzFilter.name=%s\n' % (sj['name'], flt)
+                        if verbose: print('RELATE >> Subject:vzSubj.name=%s to Filter:vzFilter.name=%s\n' % (sj['name'], flt))
         
         for l3e in l3e_list:
             if 'Context' in l3e:
                 tenant_l3e_objs[l3e['name']].relate2Context(tenant_ctx_objs[l3e['Context']])
-                if verbose: print 'RELATE >> L3External:l3extOut.name=%s to Context:fvCtx.name=%s\n' % (bd['name'], bd['Context'])
+                if verbose: print('RELATE >> L3External:l3extOut.name=%s to Context:fvCtx.name=%s\n' % (bd['name'], bd['Context']))
         
         for bd in bd_list:
             if 'Context' in bd:
                 tenant_bd_objs[bd['name']].relate2Context(tenant_ctx_objs[bd['Context']])
-                if verbose: print 'RELATE >> BridgeDomain:fvBD.name=%s to Context:fvCtx.name=%s\n' % (bd['name'], bd['Context'])
+                if verbose: print('RELATE >> BridgeDomain:fvBD.name=%s to Context:fvCtx.name=%s\n' % (bd['name'], bd['Context']))
             if 'L3External' in bd:
                 tenant_bd_objs[bd['name']].relate2L3External(tenant_l3e_objs[bd['L3External']])
-                if verbose: print 'RELATE >> BridgeDomain:fvBD.name=%s to L3External:l3extOut.name=%s\n' % (bd['name'], bd['L3External'])
+                if verbose: print('RELATE >> BridgeDomain:fvBD.name=%s to L3External:l3extOut.name=%s\n' % (bd['name'], bd['L3External']))
                 
         for ap in ap_list:
             epg_list = ap['EPG'] if 'EPG' in ap and isinstance(ap['EPG'], list) else []
             for epg in epg_list:
                 if 'BridgeDomain' in epg:
                     tenant_epg_objs[epg['name']].relate2BridgeDomain(tenant_bd_objs[epg['BridgeDomain']])
-                    if verbose: print 'RELATE >> EPG:fvAEPg.name=%s to BridgeDomain:fvBD.name=%s\n' % (epg_obj['name'], epg['BridgeDomain'])
+                    if verbose: print('RELATE >> EPG:fvAEPg.name=%s to BridgeDomain:fvBD.name=%s\n' % (epg_obj['name'], epg['BridgeDomain']))
                 if 'Consume' in epg:
                     for cons in epg['Consume']:
                         tenant_epg_objs[epg['name']].relate2Consumer(tenant_ctr_objs[cons])
-                        if verbose: print 'RELATE >> EPG:fvAEPg.name=%s to Consume:vzBrCP.name=%s\n' % (epg_obj['name'], cons)
+                        if verbose: print('RELATE >> EPG:fvAEPg.name=%s to Consume:vzBrCP.name=%s\n' % (epg_obj['name'], cons))
                 if 'Provide' in epg:
                     for prov in epg['Provide']:
                         tenant_epg_objs[epg['name']].relate2Provider(tenant_ctr_objs[prov])
-                        if verbose: print 'RELATE >> EPG:fvAEPg.name=%s to Provide:vzBrCP.name=%s\n' % (epg_obj['name'], prov)
+                        if verbose: print('RELATE >> EPG:fvAEPg.name=%s to Provide:vzBrCP.name=%s\n' % (epg_obj['name'], prov))
                 if 'Path' in epg:
                     for path in epg['Path']:
                         ep_obj = dom.Pod(path['Pod']).Paths(path['Node']).Path(path['Intf'])
                         tenant_epg_objs[epg['name']].relate2StaticPath(ep_obj, **parse_desc_unit(path))
-                        if verbose: print 'RELATE >> EPG:fvAEPg.name=%s to Path:PathEp.name=%s\n' % (epg_obj['name'], path['Pod'] + '/' + path['Node'] + '/' + path['Intf'])
+                        if verbose: print('RELATE >> EPG:fvAEPg.name=%s to Path:PathEp.name=%s\n' % (epg_obj['name'], path['Pod'] + '/' + path['Node'] + '/' + path['Intf']))
         
         if delete_empty_tenant and len(tenant_ctx_objs) == 0 and len(tenant_bd_objs) == 0 and len(tenant_ap_objs) == 0:
             delete_tenants.append(tenant['name'])
@@ -188,7 +188,7 @@ def deployACI(desc, verbose=False, debug=False):
     def object_delete(obj):
         dn = obj['dn']
         obj.delete()
-        if verbose: print 'DELETE >> %s.dn=%s\n' % (obj.class_name, dn)
+        if verbose: print('DELETE >> %s.dn=%s\n' % (obj.class_name, dn))
     
     def recursive_delete(obj):
         children = obj.children()
