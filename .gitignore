@@ -10,8 +10,12 @@ __pycache__/
 .Python
 env/
 build/
+test/
 develop-eggs/
 downloads/
+.setting/
+.settings/
+dist/
 eggs/
 .eggs/
 lib/
