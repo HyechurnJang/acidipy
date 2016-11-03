@@ -10,7 +10,7 @@
         deleteEmptyTenant: true
         deployIncremental: true
       Tenant:
-      - name: ansible-test
+      - name: acibuilder-test
         Filter:
         - name: test-filter
           FilterEntry:

@@ -7,4 +7,4 @@ Option:
   deleteEmptyTenant: true
   deployIncremental: false
 Tenant:
-- name: hyjang-test
+- name: acibuilder-test

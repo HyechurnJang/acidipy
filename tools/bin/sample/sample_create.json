@@ -10,25 +10,25 @@
 	},
 	"Tenant": [
 		{
-			"name": "hyjang-test",
+			"name": "acibuilder-test",
 			"Filter": [
 				{
-					"name": "filter1",
+					"name": "test-filter",
 					"FilterEntry": [
 						{
-							"name": "entry1"
+							"name": "test-entry"
 						}
 					]
 				}
 			],
 			"Contract": [
 				{
-					"name": "test-ctr",
+					"name": "test-contract",
 					"Subject": [
 						{
-							"name": "subject1",
+							"name": "test-subject",
 							"Filter": [
-								"filter1"
+								"test-filter"
 							]
 						}
 					]
@@ -36,28 +36,28 @@
 			],
 			"Context": [
 				{
-					"name": "router1"
+					"name": "test-router"
 				}
 			],
 			"L3External": [
 				{
-					"name": "external1",
-					"Context": "router1"
+					"name": "test-ext",
+					"Context": "test-router"
 				}
 			],
 			"BridgeDomain": [
 				{
-					"name": "bd1",
-					"Context": "router1",
-					"L3External": "external1",
+					"name": "test-bd",
+					"Context": "test-router",
+					"L3External": "test-ext",
 					"Subnet": [
 						{
-							"name": "subnet1",
+							"name": "test-subnet1",
 							"ip": "10.1.1.1/24",
 							"scope": "public"
 						},
 						{
-							"name": "subnet2",
+							"name": "test-subnet2",
 							"ip": "10.1.2.1/24"
 						}
 					]
@@ -65,13 +65,13 @@
 			],
 			"AppProfile": [
 				{
-					"name": "app1",
+					"name": "test-app",
 					"EPG": [
 						{
-							"name": "epg1",
-							"BridgeDomain": "bd1",
+							"name": "test-epg1",
+							"BridgeDomain": "test-bd",
 							"Provide": [
-								"test-ctr"
+								"test-contract"
 							],
 							"Path": [
 								{
@@ -83,10 +83,10 @@
 							]
 						},
 						{
-							"name": "epg2",
-							"BridgeDomain": "bd1",
+							"name": "test-epg2",
+							"BridgeDomain": "test-bd",
 							"Consume": [
-								"test-ctr"
+								"test-contract"
 							]
 						}
 					]

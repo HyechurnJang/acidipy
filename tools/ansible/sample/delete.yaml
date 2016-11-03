@@ -10,4 +10,4 @@
         deleteEmptyTenant: true
         deployIncremental: false
       Tenant:
-      - name: ansible-test
+      - name: acibuilder-test
