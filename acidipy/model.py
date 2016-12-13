@@ -174,7 +174,7 @@ class PodActor(AcidipyActor, SubscribeActor):
             for class_name in d:
                 attrs = d[class_name]['attributes']
                 if self.parent['dn'] in attrs['dn']:
-                    obj = {'dn' : attrs['dn'].repalce('/health', ''), 'name' : attrs['dn'].split('/')[1].replace('pod-', ''), 'score' : int(attrs['cur'])}
+                    obj = {'dn' : attrs['dn'].replace('/health', ''), 'name' : attrs['dn'].split('/')[1].replace('pod-', ''), 'score' : int(attrs['cur'])}
                     ret.append(obj)
         return ret
 
@@ -188,7 +188,7 @@ class NodeActor(AcidipyActor):
             for class_name in d:
                 attrs = d[class_name]['attributes']
                 if self.parent['dn'] in attrs['dn']:
-                    obj = {'dn' : attrs['dn'].repalce('/sys/health', ''), 'name' : attrs['dn'].split('/')[2].replace('node-', ''), 'score' : int(attrs['cur'])}
+                    obj = {'dn' : attrs['dn'].replace('/sys/health', ''), 'name' : attrs['dn'].split('/')[2].replace('node-', ''), 'score' : int(attrs['cur'])}
                     ret.append(obj)
         return ret
     
@@ -317,7 +317,7 @@ class ControllerNodeActor(ControllerActor, SubscribeActor):
         for d in data:
             for class_name in d:
                 attrs = d[class_name]['attributes']
-                obj = {'dn' : attrs['dn'].repalce('/sys/health', ''), 'name' : attrs['dn'].split('/')[2].replace('node-', ''), 'score' : int(attrs['cur'])}
+                obj = {'dn' : attrs['dn'].replace('/sys/health', ''), 'name' : attrs['dn'].split('/')[2].replace('node-', ''), 'score' : int(attrs['cur'])}
                 ret.append(obj)
         return ret
 
@@ -345,6 +345,9 @@ class ControllerPhysIfActor(ControllerActor, SubscribeActor):
                 obj = {'dn' : attrs['dn'].replace('/phys/health', ''), 'name' : attrs['dn'].split('[')[1].replace(']/phys/health', ''), 'score' : int(attrs['cur'])}
                 ret.append(obj)
         return ret
+
+class ControllerFaultActor(ControllerActor, SubscribeActor):
+    def __init__(self, controller): ControllerActor.__init__(self, controller, 'faultInfo')
 
 ########################################################################################
 #  ________  ________  ________  _________  ________  ________  ________ _________   
@@ -562,7 +565,7 @@ class EPGObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren, Acidi
             if self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsPathAtt' : {'attributes' : attributes}})): return True
         raise AcidipyRelateError(self['dn'] + ' << >> ' + path_object['dn'])
 
-class EndpointObject(AcidipyObject, AcidipyObjectParent): pass
+class EndpointObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren): pass
 
 #===============================================================================
 # Topo Models
@@ -577,11 +580,12 @@ class PodObject(AcidipyObject, AcidipyObjectChildren):
 class NodeObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren):
     
     def __patch__(self):
-        if self.is_detail: self.System = SystemObject(**self.controller(self['dn'] + '/sys', detail=self.is_detail))
-        else: self.System = SystemObject(dn=self['dn'] + '/sys')
-        self.System.controller = self.controller
-        self.System.is_detail = self.is_detail
-        self.System.__patch__()
+        if self['fabricSt'] == 'active':
+            if self.is_detail: self.System = SystemObject(**self.controller(self['dn'] + '/sys', detail=self.is_detail))
+            else: self.System = SystemObject(dn=self['dn'] + '/sys')
+            self.System.controller = self.controller
+            self.System.is_detail = self.is_detail
+            self.System.__patch__()
 
 class SystemObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren):
         
@@ -624,7 +628,7 @@ class Subscriber(SystemThread, SchedTask):
         SchedTask.__init__(self, 30)
         self.controller = controller
         try: self.socket = create_connection('wss://%s/socket%s' % (self.controller['ip'], self.controller.token), sslopt={'cert_reqs': ssl.CERT_NONE})
-        except: raise AcidipySessionError()
+        except Exception as e: print str(e); raise AcidipySessionError()
         self.handlers = {}
         
     def close(self):
@@ -694,7 +698,9 @@ class Controller(Session, AcidipyObject, SchedTask):
         AcidipyObject.__init__(self,
                                ip=ip,
                                user=user,
-                               pwd=pwd)
+                               pwd=pwd,
+                               conns=conns,
+                               conn_max=conn_max)
         SchedTask.__init__(self, 300)
         
         self.class_name = 'Controller'
@@ -723,6 +729,8 @@ class Controller(Session, AcidipyObject, SchedTask):
         self.Path = ControllerPathActor(self)
         self.System = ControllerSystemActor(self)
         self.PhysIf = ControllerPhysIfActor(self)
+        
+        self.Fault = ControllerFaultActor(self)
         
         self.scheduler.register(self)
         self.scheduler.register(self.subscriber)
@@ -758,10 +766,343 @@ class Controller(Session, AcidipyObject, SchedTask):
                 acidipy_obj = AcidipyObject(**d[class_name]['attributes'])
                 acidipy_obj.controller = self
                 acidipy_obj.class_name = class_name
-                acidipy_obj.detail = detail
+                acidipy_obj.is_detail = detail
                 if class_name in PREPARE_CLASSES:
                     acidipy_obj.__class__ = globals()[PREPARE_CLASSES[class_name]]
                     acidipy_obj.__patch__()
                 return acidipy_obj
         raise AcidipyNonExistData(dn)
 
+class MultiDomain(dict):
+    
+    class TenantActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Tenant.list(detail, sort, page, **clause)
+            return ret
+        def health(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Tenant.health()
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Tenant.count()
+            return ret
+    
+    class FilterActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Filter.list(detail, sort, page, **clause)
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Filter.count()
+            return ret
+    
+    class ContractActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Contract.list(detail, sort, page, **clause)
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Contract.count()
+            return ret
+    
+    class ContextActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Context.list(detail, sort, page, **clause)
+            return ret
+        def health(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Context.health()
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Context.count()
+            return ret
+    
+    class L3ExternalActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].L3External.list(detail, sort, page, **clause)
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].L3External.count()
+            return ret
+        
+    class BridgeDomainActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].BridgeDomain.list(detail, sort, page, **clause)
+            return ret
+        def health(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].BridgeDomain.health()
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].BridgeDomain.count()
+            return ret
+    
+    class AppProfileActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].AppProfile.list(detail, sort, page, **clause)
+            return ret
+        def health(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].AppProfile.health()
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].AppProfile.count()
+            return ret
+    
+    class FilterEntryActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].FilterEntry.list(detail, sort, page, **clause)
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].FilterEntry.count()
+            return ret
+    
+    class SubjectActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Subject.list(detail, sort, page, **clause)
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Subject.count()
+            return ret
+    
+    class SubnetActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Subnet.list(detail, sort, page, **clause)
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Subnet.count()
+            return ret
+        
+    class EPGActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].EPG.list(detail, sort, page, **clause)
+            return ret
+        def health(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].EPG.health()
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].EPG.count()
+            return ret
+    
+    class EndpointActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Endpoint.list(detail, sort, page, **clause)
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Endpoint.count()
+            return ret
+    
+    class PodActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Pod.list(detail, sort, page, **clause)
+            return ret
+        def health(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Pod.health()
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Pod.count()
+            return ret
+    
+    class NodeActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Node.list(detail, sort, page, **clause)
+            return ret
+        def health(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Node.health()
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Node.count()
+            return ret
+        
+    class PathsActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Paths.list(detail, sort, page, **clause)
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Paths.count()
+            return ret
+    
+    class VPathsActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].VPaths.list(detail, sort, page, **clause)
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].VPaths.count()
+        
+    class PathActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Path.list(detail, sort, page, **clause)
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Path.count()
+        
+    class SystemActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].System.list(detail, sort, page, **clause)
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].System.count()
+    
+    class PhysIfActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].PhysIf.list(detail, sort, page, **clause)
+            return ret
+        def health(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].PhysIf.health()
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].PhysIf.count()
+            return ret
+        
+    class ClassActor:
+        def __init__(self, multidom, class_name): self.multidom = multidom; self.class_name = class_name
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Class(self.class_name).list(detail, sort, page, **clause)
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Class(self.class_name).count()
+            return ret
+        
+    class FaultActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Fault.list(detail, sort, page, **clause)
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Fault.count()
+            return ret
+    
+    def __init__(self, conns=1, conn_max=2, debug=False, week=False):
+        dict.__init__(self)
+        self.conns = conns
+        self.conn_max = conn_max
+        self.debug = debug
+        self.week = week
+        
+        self.Tenant = MultiDomain.TenantActor(self)
+        
+        self.Filter = MultiDomain.FilterActor(self)
+        self.Contract = MultiDomain.ContractActor(self)
+        self.Context = MultiDomain.ContextActor(self)
+        self.L3External = MultiDomain.L3ExternalActor(self)
+        self.BridgeDomain = MultiDomain.BridgeDomainActor(self)
+        self.AppProfile = MultiDomain.AppProfileActor(self)
+        self.FilterEntry = MultiDomain.FilterEntryActor(self)
+        self.Subject = MultiDomain.SubjectActor(self)
+        self.Subnet = MultiDomain.SubnetActor(self)
+        self.EPG = MultiDomain.EPGActor(self)
+        self.Endpoint = MultiDomain.EndpointActor(self)
+        
+        self.Pod = MultiDomain.PodActor(self)
+        
+        self.Node = MultiDomain.NodeActor(self)
+        self.Paths = MultiDomain.PathsActor(self)
+        self.VPaths = MultiDomain.VPathsActor(self)
+        self.Path = MultiDomain.PathActor(self)
+        self.System = MultiDomain.SystemActor(self)
+        self.PhysIf = MultiDomain.PhysIfActor(self)
+        
+        self.Fault = MultiDomain.FaultActor(self)
+        
+    def Class(self, class_name):
+        return MultiDomain.ClassActor(self, class_name)
+    
+    def detail(self): return self
+    
+    def health(self):
+        ret = {}
+        for dom_name in self: ret[dom_name] = self[dom_name].health()
+        return ret
+        
+    def addDomain(self, domain_name, ip, user, pwd, conns=None, conn_max=None, debug=None, week=None):
+        if domain_name in self: return False
+        opts = {'ip' : ip, 'user' : user, 'pwd' : pwd, 'conns' : self.conns, 'conn_max' : self.conn_max, 'debug' : self.debug, 'week' : self.week}
+        if conns != None: opts['conns'] = conns
+        if conn_max != None: opts['conn_max'] = conn_max
+        if debug != None: opts['debug'] = debug
+        if week != None: opts['week'] = week
+        try: ctrl = Controller(**opts)
+        except: return False
+        self[domain_name] = ctrl
+        return True
+    
+    def delDomain(self, domain_name):
+        if domain_name not in self: return False
+        self[domain_name].close()
+        self.pop(domain_name)
+        return True
+    
+    def close(self):
+        dom_names = self.keys()
+        for dom_name in dom_names: self.delDomain(dom_name)
+        
+        
+        
+        
+        
+        
+        
+         

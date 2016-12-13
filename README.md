@@ -3,9 +3,9 @@ Cisco ACI Python API
 
 **ACI** **D**eveloping **I**nterface for **PY**thon
 
-version : 0.9.7
+version : 0.9.9
 
-last change : upgrade deployACI to use common scope
+last change : stablilizing to session
 
 ![Relations](./doc/Relation.png)
 
@@ -46,7 +46,7 @@ last change : upgrade deployACI to use common scope
 
 	import acidipy
 	
-	controller = acidipy.Controller('10.72.86.21', 'admin', '1234Qwer', False) # Get controller connection
+	controller = acidipy.Controller('10.72.86.21', 'admin', '1234Qwer') # Get controller connection
 	
 	tenant = controller.Tenant.create(name='example-tenant') # Create tenant
 	bd = tenant.BridgeDomain.create(name='example-bd') # Create bridge domain

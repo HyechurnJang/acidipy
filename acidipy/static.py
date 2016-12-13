@@ -14,7 +14,8 @@ class AcidipyError(Exception):
         self.text = text
     def __str__(self): return 'code:%s-text:%s' % (self.code, self.text)
 
-class AcidipySessionError(Exception): pass
+class AcidipySessionError(Exception): 
+    def __str__(self): return 'Acidipy Session Error'
 
 class AcidipySubscriptionError(Exception): pass
 
@@ -76,5 +77,5 @@ PREPARE_CLASSES = {
    'fabricProtPathEpCont' : 'VPathsObject',
    'fabricPathEp' :         'PathObject',
    'topSystem' :            'SystemObject',
-   'l1PhysIf' :             'PhysIfObject'
+   'l1PhysIf' :             'PhysIfObject',
 }

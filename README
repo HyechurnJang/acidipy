@@ -12,7 +12,7 @@ Example
 
 	import acidipy
 	
-	controller = acidipy.Controller('10.72.86.21', 'admin', '1234Qwer', False) # Get controller connection
+	controller = acidipy.Controller('10.72.86.21', 'admin', '1234Qwer') # Get controller connection
 	
 	tenant = controller.Tenant.create(name='example-tenant') # Create tenant
 	bd = tenant.BridgeDomain.create(name='example-bd') # Create bridge domain
