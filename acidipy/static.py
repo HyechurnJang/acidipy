@@ -19,6 +19,8 @@ class AcidipySessionError(Exception):
 
 class AcidipySubscriptionError(Exception): pass
 
+class AcidipyAttributesError(Exception): pass
+
 class AcidipyNonExistData(Exception):
     def __init__(self, target_name): self.target_name = target_name
     def __str__(self): return 'Non exist data of %s' % self.target_name
@@ -59,23 +61,26 @@ class AcidipyRelateError(Exception):
 # Prepare Classes
 #===============================================================================
 PREPARE_CLASSES = {
-   'fvTenant' :             'TenantObject',
-   'vzFilter' :             'FilterObject',
-   'vzBrCP' :               'ContractObject',
-   'fvCtx' :                'ContextObject',
-   'l3extOut' :             'L3ExternalObject',
-   'fvBD' :                 'BridgeDomainObject',
-   'fvAp' :                 'AppProfileObject',
-   'vzEntry' :              'FilterEntryObject',
-   'vzSubj' :               'SubjectObject',
-   'fvSubnet' :             'SubnetObject',
-   'fvAEPg' :               'EPGObject',
-   'fvCEp' :                'EndpointObject',
-   'fabricPod' :            'PodObject',
-   'fabricNode' :           'NodeObject',
-   'fabricPathEpCont' :     'PathsObject',
-   'fabricProtPathEpCont' : 'VPathsObject',
-   'fabricPathEp' :         'PathObject',
-   'topSystem' :            'SystemObject',
-   'l1PhysIf' :             'PhysIfObject',
+    'fvTenant' :             'TenantObject',
+    'vzFilter' :             'FilterObject',
+    'vzBrCP' :               'ContractObject',
+    'fvCtx' :                'ContextObject',
+    'l3extOut' :             'L3ExternalObject',
+    'fvBD' :                 'BridgeDomainObject',
+    'fvAp' :                 'AppProfileObject',
+    'vzEntry' :              'FilterEntryObject',
+    'vzSubj' :               'SubjectObject',
+    'fvSubnet' :             'SubnetObject',
+    'fvAEPg' :               'EPGObject',
+    'fvCEp' :                'EndpointObject',
+    'fabricPod' :            'PodObject',
+    'fabricNode' :           'NodeObject',
+    'fabricPathEpCont' :     'PathsObject',
+    'fabricProtPathEpCont' : 'VPathsObject',
+    'fabricPathEp' :         'PathObject',
+    'topSystem' :            'SystemObject',
+    'l1PhysIf' :             'PhysIfObject',
+}
+
+PREPARE_ATTRIBUTES = {
 }

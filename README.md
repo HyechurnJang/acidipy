@@ -3,9 +3,9 @@ Cisco ACI Python API
 
 **ACI** **D**eveloping **I**nterface for **PY**thon
 
-version : 0.9.9
+version : 0.10.0
 
-last change : stablilizing to session
+last change : get attributes method
 
 ![Relations](./doc/Relation.png)
 
