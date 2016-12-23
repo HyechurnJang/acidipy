@@ -256,6 +256,7 @@ class AcidipyObject(dict):
         try: keys = sorted(data[0][self.class_name]['attributes'].keys())
         except: raise AcidipyAttributesError()
         if 'childAction' in keys: keys.remove('childAction')
+        if 'dn' in keys: keys.remove('dn'); keys.insert(0, 'dn')
         if 'name' in keys: keys.remove('name'); keys.insert(0, 'name')
         if 'id' in keys: keys.remove('id'); keys.insert(0, 'id')
         PREPARE_ATTRIBUTES[self.class_name] = keys
@@ -277,8 +278,6 @@ class AcidipyObject(dict):
             self.is_detail = True
         return self
 
-class AcidipyObjectParent:
-    
     def parent(self, detail=False):
         try: parent_dn = self['dn'].split(re.match('[\W\w]+(?P<rn>/\w+-\[?[\W\w]+]?)$', self['dn']).group('rn'))[0]
         except: raise AcidipyNonExistParent(self['dn'])
@@ -297,8 +296,6 @@ class AcidipyObjectParent:
                 return acidipy_obj
         raise AcidipyNonExistData(parent_dn)
 
-class AcidipyObjectChildren:
-    
     def children(self, detail=False, sort=None, page=None, **clause):
         url = '/api/mo/' + self['dn'] + '.json?query-target=children'
         if not detail: url += '&rsp-prop-include=naming-only'
@@ -326,6 +323,9 @@ class AcidipyObjectChildren:
                     acidipy_obj.__patch__()
                 ret.append(acidipy_obj)
         return ret
+    
+    def Class(self, class_name):
+        return AcidipyActor(self, class_name)
 
 class AcidipyObjectHealth:
     
@@ -360,7 +360,7 @@ class AcidipyObjectModify:
 #
 ###############################################################
 
-class TenantObject(AcidipyObject, AcidipyObjectChildren, AcidipyObjectHealth, AcidipyObjectModify):
+class TenantObject(AcidipyObject, AcidipyObjectHealth, AcidipyObjectModify):
     
     def __patch__(self):
         self.Filter = FilterActor(self)
@@ -370,19 +370,20 @@ class TenantObject(AcidipyObject, AcidipyObjectChildren, AcidipyObjectHealth, Ac
         self.BridgeDomain = BridgeDomainActor(self)
         self.AppProfile = AppProfileActor(self)
         
-class FilterObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren, AcidipyObjectModify):
+        
+class FilterObject(AcidipyObject, AcidipyObjectModify):
     
     def __patch__(self):
         self.FilterEntry = FilterEntryActor(self)
 
-class ContractObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren, AcidipyObjectModify):
+class ContractObject(AcidipyObject, AcidipyObjectModify):
     
     def __patch__(self):
         self.Subject = SubjectActor(self)
 
-class ContextObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren, AcidipyObjectHealth, AcidipyObjectModify): pass
+class ContextObject(AcidipyObject, AcidipyObjectHealth, AcidipyObjectModify): pass
      
-class L3ExternalObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren, AcidipyObjectModify):
+class L3ExternalObject(AcidipyObject, AcidipyObjectModify):
     
     def relate2Context(self, vrf_object, **attributes):
         if isinstance(vrf_object, ContextObject):
@@ -390,7 +391,7 @@ class L3ExternalObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren
             if self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'l3extRsEctx' : {'attributes' : attributes}})): return True
         raise AcidipyRelateError(self['dn'] + ' << >> ' + vrf_object['dn'])
 
-class BridgeDomainObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren, AcidipyObjectHealth, AcidipyObjectModify):
+class BridgeDomainObject(AcidipyObject, AcidipyObjectHealth, AcidipyObjectModify):
      
     def __patch__(self):
         self.Subnet = SubnetActor(self)
@@ -407,14 +408,14 @@ class BridgeDomainObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildr
             if self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsBDToOut' : {'attributes' : attributes}})): return True
         raise AcidipyRelateError(self['dn'] + ' << >> ' + out_object['dn']) 
  
-class AppProfileObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren, AcidipyObjectHealth, AcidipyObjectModify):
+class AppProfileObject(AcidipyObject, AcidipyObjectHealth, AcidipyObjectModify):
      
     def __patch__(self):
         self.EPG = EPGActor(self)
 
-class FilterEntryObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren, AcidipyObjectModify): pass
+class FilterEntryObject(AcidipyObject, AcidipyObjectModify): pass
 
-class SubjectObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren, AcidipyObjectModify):
+class SubjectObject(AcidipyObject, AcidipyObjectModify):
     
     def relate2Filter(self, flt_object, **attributes):
         if isinstance(flt_object, FilterObject):
@@ -422,9 +423,9 @@ class SubjectObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren, A
             if self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'vzRsSubjFiltAtt' : {'attributes' : attributes}})): return True
         raise AcidipyRelateError(self['dn'] + ' << >> ' + flt_object['dn'])
          
-class SubnetObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren, AcidipyObjectModify): pass
+class SubnetObject(AcidipyObject, AcidipyObjectModify): pass
      
-class EPGObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren, AcidipyObjectHealth, AcidipyObjectModify):
+class EPGObject(AcidipyObject, AcidipyObjectHealth, AcidipyObjectModify):
     
     def __patch__(self):
         self.Endpoint = EndpointActor(self)
@@ -454,43 +455,44 @@ class EPGObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren, Acidi
             if self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsPathAtt' : {'attributes' : attributes}})): return True
         raise AcidipyRelateError(self['dn'] + ' << >> ' + path_object['dn'])
 
-class EndpointObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren): pass
+class EndpointObject(AcidipyObject): pass
 
-class PodObject(AcidipyObject, AcidipyObjectChildren):
+class PodObject(AcidipyObject):
     
     def __patch__(self):
         self.Node = NodeActor(self)
         self.Paths = PathsActor(self)
         self.VPaths = VPathsActor(self)
 
-class NodeObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren):
+class NodeObject(AcidipyObject):
     
     def __patch__(self):
         if 'fabricSt' in self and self['fabricSt'] == 'active':
             if self.is_detail: self.System = SystemObject(**self.controller(self['dn'] + '/sys', detail=self.is_detail))
             else: self.System = SystemObject(dn=self['dn'] + '/sys')
+            self.System.class_name = 'topSystem'
             self.System.controller = self.controller
             self.System.is_detail = self.is_detail
             self.System.__patch__()
 
-class SystemObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren):
+class SystemObject(AcidipyObject):
         
     def __patch__(self):
         self.PhysIf = PhysIfActor(self)
         
-class PathsObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren):
+class PathsObject(AcidipyObject):
     
     def __patch__(self):
         self.Path = PathActor(self)
         
-class VPathsObject(AcidipyObject, AcidipyObjectParent, AcidipyObjectChildren):
+class VPathsObject(AcidipyObject):
     
     def __patch__(self):
         self.Path = PathActor(self)
 
-class PathObject(AcidipyObject, AcidipyObjectParent): pass
+class PathObject(AcidipyObject): pass
 
-class PhysIfObject(AcidipyObject, AcidipyObjectParent): pass
+class PhysIfObject(AcidipyObject): pass
         
 
 #############################################################################################################

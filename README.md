@@ -3,9 +3,9 @@ Cisco ACI Python API
 
 **ACI** **D**eveloping **I**nterface for **PY**thon
 
-version : 0.10.0
+version : 0.10.1
 
-last change : get attributes method
+last change : fix parent child retrieving mechanism
 
 ![Relations](./doc/Relation.png)
 
