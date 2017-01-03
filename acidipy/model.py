@@ -228,7 +228,6 @@ class PhysIfActor(AcidipyActor):
                     ret.append(obj)
         return ret
 
-
 ########################################################################################
 #  ________  ________  ________  _________  ________  ________  ________ _________   
 # |\   __  \|\   __  \|\   ____\|\___   ___\\   __  \|\   __  \|\   ____\\___   ___\ 
@@ -467,7 +466,7 @@ class PodObject(AcidipyObject):
 class NodeObject(AcidipyObject):
     
     def __patch__(self):
-        if 'fabricSt' in self and self['fabricSt'] == 'active':
+        if self['fabricSt'] == 'active' or self['role'] == 'controller':
             if self.is_detail: self.System = SystemObject(**self.controller(self['dn'] + '/sys', detail=self.is_detail))
             else: self.System = SystemObject(dn=self['dn'] + '/sys')
             self.System.class_name = 'topSystem'
@@ -494,7 +493,6 @@ class PathObject(AcidipyObject): pass
 
 class PhysIfObject(AcidipyObject): pass
         
-
 #############################################################################################################
 #  ________  ________  ________   _________  ________  ________  ___       ___       _______   ________     
 # |\   ____\|\   __  \|\   ___  \|\___   ___\\   __  \|\   __  \|\  \     |\  \     |\  ___ \ |\   __  \    
