@@ -153,8 +153,11 @@ class ContractActor(AcidipyActor, AcidipyActorCreate):
 class ContextActor(AcidipyActor, AcidipyActorHealth, AcidipyActorCreate):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fvCtx', 'name', '/ctx-%s')
     
-class L3ExternalActor(AcidipyActor, AcidipyActorCreate):
+class L3OutActor(AcidipyActor, AcidipyActorCreate):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'l3extOut', 'name', '/out-%s')
+
+class L3ProfileActor(AcidipyActor, AcidipyActorCreate):
+    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'l3extInstP', 'name', '/instP-%s')
     
 class BridgeDomainActor(AcidipyActor, AcidipyActorHealth, AcidipyActorCreate):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fvBD', 'name', '/BD-%s')
@@ -248,6 +251,11 @@ class AcidipyObject(dict):
     def __patch__(self):
         pass
     
+    def toJson(self):
+        data = {}
+        data[self.class_name] = {'attributes' : self}
+        return json.dumps(data, sort_keys=True)
+    
     def attrs(self):
         if self.class_name in PREPARE_ATTRIBUTES: return PREPARE_ATTRIBUTES[self.class_name]
         url = '/api/class/' + self.class_name + '.json?page=0&page-size=1'
@@ -261,10 +269,16 @@ class AcidipyObject(dict):
         PREPARE_ATTRIBUTES[self.class_name] = keys
         return keys
     
-    def toJson(self):
-        data = {}
-        data[self.class_name] = {'attributes' : self}
-        return json.dumps(data, sort_keys=True)
+    def rn(self):
+        dn = self['dn']
+        ret = re.match('(?P<path>.*)/(?P<key>\w+)-(?P<rn>\[?[\W\w]+\]?)$', dn)
+        if ret: return ret.group('path'), ret.group('key'), ret.group('rn')
+        ret = re.match('^(?P<rn>\w+)$', dn)
+        if ret: return None, None, ret.group('rn')
+        return None, None, None
+    
+    def path(self):
+        return re.sub('/\w+-', '/', self['dn'])
     
     def detail(self):
         if not self.is_detail:
@@ -365,7 +379,7 @@ class TenantObject(AcidipyObject, AcidipyObjectHealth, AcidipyObjectModify):
         self.Filter = FilterActor(self)
         self.Contract = ContractActor(self)
         self.Context = ContextActor(self)
-        self.L3External = L3ExternalActor(self)
+        self.L3Out = L3OutActor(self)
         self.BridgeDomain = BridgeDomainActor(self)
         self.AppProfile = AppProfileActor(self)
         
@@ -382,13 +396,18 @@ class ContractObject(AcidipyObject, AcidipyObjectModify):
 
 class ContextObject(AcidipyObject, AcidipyObjectHealth, AcidipyObjectModify): pass
      
-class L3ExternalObject(AcidipyObject, AcidipyObjectModify):
+class L3OutObject(AcidipyObject, AcidipyObjectModify):
+    
+    def __patch__(self):
+        self.L3Profile = L3ProfileActor(self)
     
     def relate2Context(self, vrf_object, **attributes):
         if isinstance(vrf_object, ContextObject):
             attributes['tnFvCtxName'] = vrf_object['name']
             if self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'l3extRsEctx' : {'attributes' : attributes}})): return True
         raise AcidipyRelateError(self['dn'] + ' << >> ' + vrf_object['dn'])
+
+class L3ProfileObject(AcidipyObject): pass
 
 class BridgeDomainObject(AcidipyObject, AcidipyObjectHealth, AcidipyObjectModify):
      
@@ -401,8 +420,8 @@ class BridgeDomainObject(AcidipyObject, AcidipyObjectHealth, AcidipyObjectModify
             if self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsCtx' : {'attributes' : attributes}})): return True
         raise AcidipyRelateError(self['dn'] + ' << >> ' + vrf_object['dn'])
     
-    def relate2L3External(self, out_object, **attributes):
-        if isinstance(out_object, L3ExternalObject):
+    def relate2L3Out(self, out_object, **attributes):
+        if isinstance(out_object, L3OutObject):
             attributes['tnL3extOutName'] = out_object['name']
             if self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsBDToOut' : {'attributes' : attributes}})): return True
         raise AcidipyRelateError(self['dn'] + ' << >> ' + out_object['dn']) 
@@ -466,9 +485,15 @@ class PodObject(AcidipyObject):
 class NodeObject(AcidipyObject):
     
     def __patch__(self):
-        if self['fabricSt'] == 'active' or self['role'] == 'controller':
-            if self.is_detail: self.System = SystemObject(**self.controller(self['dn'] + '/sys', detail=self.is_detail))
-            else: self.System = SystemObject(dn=self['dn'] + '/sys')
+        if self.is_detail:
+            if self['fabricSt'] == 'active' or self['role'] == 'controller':
+                self.System = SystemObject(**self.controller(self['dn'] + '/sys', detail=self.is_detail))
+                self.System.class_name = 'topSystem'
+                self.System.controller = self.controller
+                self.System.is_detail = self.is_detail
+                self.System.__patch__()
+        else:
+            self.System = SystemObject(dn=self['dn'] + '/sys')
             self.System.class_name = 'topSystem'
             self.System.controller = self.controller
             self.System.is_detail = self.is_detail
@@ -648,8 +673,11 @@ class Controller(Session, AcidipyObject, SchedTask):
     class ContextActor(Actor, ActorHealth, SubscribeActor):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fvCtx')
     
-    class L3ExternalActor(Actor, SubscribeActor):
+    class L3OutActor(Actor, SubscribeActor):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'l3extOut')
+    
+    class L3ProfileActor(Actor, SubscribeActor):
+        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'l3extInstP')
         
     class BridgeDomainActor(Actor, ActorHealth, SubscribeActor):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fvBD')
@@ -742,7 +770,8 @@ class Controller(Session, AcidipyObject, SchedTask):
         self.Filter = Controller.FilterActor(self)
         self.Contract = Controller.ContractActor(self)
         self.Context = Controller.ContextActor(self)
-        self.L3External = Controller.L3ExternalActor(self)
+        self.L3Out = Controller.L3OutActor(self)
+        self.L3Profile = Controller.L3ProfileActor(self)
         self.BridgeDomain = Controller.BridgeDomainActor(self)
         self.AppProfile = Controller.AppProfileActor(self)
         self.FilterEntry = Controller.FilterEntryActor(self)
@@ -857,15 +886,26 @@ class MultiDomain(dict):
             for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Context.count()
             return ret
     
-    class L3ExternalActor:
+    class L3OutActor:
         def __init__(self, multidom): self.multidom = multidom
         def list(self, detail=False, sort=None, page=None, **clause):
             ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].L3External.list(detail, sort, page, **clause)
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].L3Out.list(detail, sort, page, **clause)
             return ret
         def count(self):
             ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].L3External.count()
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].L3Out.count()
+            return ret
+    
+    class L3ProfileActor:
+        def __init__(self, multidom): self.multidom = multidom
+        def list(self, detail=False, sort=None, page=None, **clause):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].L3Profile.list(detail, sort, page, **clause)
+            return ret
+        def count(self):
+            ret = {}
+            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].L3Profile.count()
             return ret
         
     class BridgeDomainActor:
@@ -1077,7 +1117,8 @@ class MultiDomain(dict):
         self.Filter = MultiDomain.FilterActor(self)
         self.Contract = MultiDomain.ContractActor(self)
         self.Context = MultiDomain.ContextActor(self)
-        self.L3External = MultiDomain.L3ExternalActor(self)
+        self.L3Out = MultiDomain.L3OutActor(self)
+        self.L3Profile = MultiDomain.L3ProfileActor(self)
         self.BridgeDomain = MultiDomain.BridgeDomainActor(self)
         self.AppProfile = MultiDomain.AppProfileActor(self)
         self.FilterEntry = MultiDomain.FilterEntryActor(self)

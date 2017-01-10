@@ -5,7 +5,7 @@ Created on 2016. 10. 26.
 '''
 
 import re
-from .model import Controller, TenantObject, FilterObject, ContractObject, ContextObject, L3ExternalObject, BridgeDomainObject, AppProfileObject, FilterEntryObject, SubjectObject, SubnetObject, EPGObject
+from .model import Controller, TenantObject, FilterObject, ContractObject, ContextObject, L3OutObject, L3ProfileObject, BridgeDomainObject, AppProfileObject, FilterEntryObject, SubjectObject, SubnetObject, EPGObject
 
 def deployACI(desc, verbose=False, debug=False):
     
@@ -107,7 +107,7 @@ def deployACI(desc, verbose=False, debug=False):
             
         l3e_list = tenant['L3External'] if 'L3External' in tenant and isinstance(tenant['L3External'], list) else []
         for l3e in l3e_list:
-            l3e_obj = tenant_obj.L3External.create(**parse_desc_unit(l3e))
+            l3e_obj = tenant_obj.L3Out.create(**parse_desc_unit(l3e))
             if verbose: print('UPDATE >> L3External:l3extOut.dn=%s\n' % l3e_obj['dn'])
             l3e_objs[l3e_obj['dn']] = l3e_obj
             tenant_l3e_objs[l3e_obj['name']] = l3e_obj
@@ -173,9 +173,9 @@ def deployACI(desc, verbose=False, debug=False):
                         if verbose: print('RELATE FAILED>> BridgeDomain:fvBD.name=%s to Context:fvCtx.name=%s\n' % (bd['name'], bd['Context']))
                 if verbose: print('RELATE >> BridgeDomain:fvBD.name=%s to Context:fvCtx.name=%s\n' % (bd['name'], bd['Context']))
             if 'L3External' in bd:
-                try: tenant_bd_objs[bd['name']].relate2L3External(tenant_l3e_objs[bd['L3External']])
+                try: tenant_bd_objs[bd['name']].relate2L3Out(tenant_l3e_objs[bd['L3External']])
                 except:
-                    try: tenant_bd_objs[bd['name']].relate2L3External(common.L3External(bd['L3External']))
+                    try: tenant_bd_objs[bd['name']].relate2L3Out(common.L3External(bd['L3External']))
                     except:
                         if verbose: print('RELATE FAILED>> BridgeDomain:fvBD.name=%s to L3External:l3extOut.name=%s\n' % (bd['name'], bd['L3External']))
                 if verbose: print('RELATE >> BridgeDomain:fvBD.name=%s to L3External:l3extOut.name=%s\n' % (bd['name'], bd['L3External']))
@@ -226,7 +226,7 @@ def deployACI(desc, verbose=False, debug=False):
             if isinstance(child, FilterObject): recursive_delete(child)
             elif isinstance(child, ContractObject): recursive_delete(child)
             elif isinstance(child, ContextObject): recursive_delete(child)
-            elif isinstance(child, L3ExternalObject): recursive_delete(child)
+            elif isinstance(child, L3OutObject): recursive_delete(child)
             elif isinstance(child, BridgeDomainObject): recursive_delete(child)
             elif isinstance(child, FilterEntryObject): recursive_delete(child)
             elif isinstance(child, SubjectObject): recursive_delete(child)
@@ -240,7 +240,7 @@ def deployACI(desc, verbose=False, debug=False):
             if obj['dn'] not in ctr_objs: object_delete(obj)
         elif isinstance(obj, ContextObject):
             if obj['dn'] not in ctx_objs: object_delete(obj)
-        elif isinstance(obj, L3ExternalObject):
+        elif isinstance(obj, L3OutObject):
             if obj['dn'] not in l3e_objs: object_delete(obj)
         elif isinstance(obj, FilterEntryObject):
             if obj['dn'] not in fe_objs: object_delete(obj)

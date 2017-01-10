@@ -3,9 +3,9 @@ Cisco ACI Python API
 
 **ACI** **D**eveloping **I**nterface for **PY**thon
 
-version : 0.10.1
+version : 0.10.2
 
-last change : fix parent child retrieving mechanism
+last change : stability update
 
 ![Relations](./doc/Relation.png)
 
