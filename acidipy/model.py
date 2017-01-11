@@ -538,10 +538,19 @@ class Subscriber(SystemThread, SchedTask):
         SystemThread.__init__(self)
         SchedTask.__init__(self, 30)
         self.controller = controller
-        try: self.socket = create_connection('wss://%s/socket%s' % (self.controller['ip'], self.controller.token), sslopt={'cert_reqs': ssl.CERT_NONE})
-        except Exception as e: print str(e); raise AcidipySessionError()
+        self.socket = None
         self.handlers = {}
-        
+        self.connect()
+    
+    def connect(self):
+        if self.socket != None: self.socket.close()
+        for i in range(0, self.controller.retry):
+            try: self.socket = create_connection('wss://%s/socket%s' % (self.controller['ip'], self.controller.token), sslopt={'cert_reqs': ssl.CERT_NONE})
+            except: continue
+            if self.controller.debug: print('Subscribe wss://%s/socket%s' % (self.controller['ip'], self.controller.token))
+            return
+        raise AcidipySessionError()
+    
     def close(self):
         self.socket.close()
         self.stop()
@@ -552,7 +561,7 @@ class Subscriber(SystemThread, SchedTask):
             subscribe_ids = data['subscriptionId']
             if not isinstance(subscribe_ids, list): subscribe_ids = [subscribe_ids]
             subscribe_data = data['imdata']
-        except: pass
+        except: self.connect()
         else:
             for sd in subscribe_data:
                 for class_name in sd:
@@ -759,7 +768,7 @@ class Controller(Session, AcidipyObject, SchedTask):
                                pwd=pwd,
                                conns=conns,
                                conn_max=conn_max)
-        SchedTask.__init__(self, 300)
+        SchedTask.__init__(self, 180)
         
         self.class_name = 'Controller'
         self.scheduler = Scheduler(10)
