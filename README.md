@@ -3,9 +3,9 @@ Cisco ACI Python API
 
 **ACI** **D**eveloping **I**nterface for **PY**thon
 
-version : 0.10.2
+version : 0.10.3
 
-last change : stability update
+last change : Stability for Session
 
 ![Relations](./doc/Relation.png)
 
