@@ -9,10 +9,13 @@ import ssl
 import json
 
 from websocket import create_connection
+from pygics import Thread, Task, Scheduler
 
-from .common import SystemThread, SchedTask, Scheduler
-from .session import Session
 from .static import *
+from .session import Session
+
+class SubscribeHandler:
+    def subscribe(self, status, obj): pass
 
 ###############################################################
 #  ________  ________ _________  ________  ________     
@@ -25,18 +28,6 @@ from .static import *
 #                                                       
 ###############################################################
 
-#===============================================================================
-# Subscribe Actor
-#===============================================================================
-class SubscribeActor:
-    
-    def subscribe(self, handler):
-        handler.class_name = self.class_name
-        self.controller.subscriber.register(handler)
-
-#===============================================================================
-# Class Actor
-#===============================================================================
 class AcidipyActor:
     
     def __init__(self, parent, class_name, class_pkey=None, class_ident=None):
@@ -48,7 +39,7 @@ class AcidipyActor:
         if class_name in PREPARE_CLASSES: self.prepare_class = globals()[PREPARE_CLASSES[class_name]]
         else: self.prepare_class = None
     
-    def attrs(self):
+    def keys(self):
         if self.class_name in PREPARE_ATTRIBUTES: return PREPARE_ATTRIBUTES[self.class_name]
         url = '/api/class/' + self.class_name + '.json?page=0&page-size=1'
         data = self.controller.get(url)
@@ -110,6 +101,24 @@ class AcidipyActor:
         data = self.controller.get(url)
         try: return int(data[0]['moCount']['attributes']['count'])
         except: raise AcidipyNonExistCount(self.class_name)
+    
+    def subscribe(self, handler):
+        handler.class_name = self.class_name
+        self.controller.subscriber.register(handler)
+        
+    def create(self, **attributes):
+        if self.class_pkey == None or self.class_ident == None: raise AcidipyCreateError(self.class_name)
+        acidipy_obj = AcidipyObject(**attributes)
+        acidipy_obj.class_name = self.class_name
+        if self.controller.post('/api/mo/' + self.parent['dn'] + '.json', acidipy_obj.toJson()):
+            acidipy_obj.controller = self.controller
+            acidipy_obj['dn'] = self.parent['dn'] + (self.class_ident % attributes[self.class_pkey])
+            acidipy_obj.is_detail = False
+            if self.prepare_class:
+                acidipy_obj.__class__ = self.prepare_class
+                acidipy_obj.__patch__()
+            return acidipy_obj
+        raise AcidipyCreateError(self.class_name)
 
 class AcidipyActorHealth:
 
@@ -126,61 +135,46 @@ class AcidipyActorHealth:
                 ret.append(obj)
         return ret
     
-class AcidipyActorCreate:
-    
-    def create(self, **attributes):
-        acidipy_obj = AcidipyObject(**attributes)
-        acidipy_obj.class_name = self.class_name
-        if self.controller.post('/api/mo/' + self.parent['dn'] + '.json', acidipy_obj.toJson()):
-            acidipy_obj.controller = self.controller
-            acidipy_obj['dn'] = self.parent['dn'] + (self.class_ident % attributes[self.class_pkey])
-            acidipy_obj.is_detail = False
-            if self.prepare_class:
-                acidipy_obj.__class__ = self.prepare_class
-                acidipy_obj.__patch__()
-            return acidipy_obj
-        raise AcidipyCreateError(self.class_name)
-
-class TenantActor(AcidipyActor, AcidipyActorHealth, AcidipyActorCreate, SubscribeActor):
+class TenantActor(AcidipyActor, AcidipyActorHealth):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fvTenant', 'name', '/tn-%s')
     
-class FilterActor(AcidipyActor, AcidipyActorCreate):
+class FilterActor(AcidipyActor):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'vzFilter', 'name', '/flt-%s')
 
-class ContractActor(AcidipyActor, AcidipyActorCreate):
+class ContractActor(AcidipyActor):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'vzBrCP', 'name', '/brc-%s')
 
-class ContextActor(AcidipyActor, AcidipyActorHealth, AcidipyActorCreate):
+class ContextActor(AcidipyActor, AcidipyActorHealth):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fvCtx', 'name', '/ctx-%s')
     
-class L3OutActor(AcidipyActor, AcidipyActorCreate):
+class L3OutActor(AcidipyActor):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'l3extOut', 'name', '/out-%s')
 
-class L3ProfileActor(AcidipyActor, AcidipyActorCreate):
+class L3ProfileActor(AcidipyActor):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'l3extInstP', 'name', '/instP-%s')
     
-class BridgeDomainActor(AcidipyActor, AcidipyActorHealth, AcidipyActorCreate):
+class BridgeDomainActor(AcidipyActor, AcidipyActorHealth):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fvBD', 'name', '/BD-%s')
 
-class AppProfileActor(AcidipyActor, AcidipyActorHealth, AcidipyActorCreate):
+class AppProfileActor(AcidipyActor, AcidipyActorHealth):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fvAp', 'name', '/ap-%s')
 
-class FilterEntryActor(AcidipyActor, AcidipyActorCreate):
+class FilterEntryActor(AcidipyActor):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'vzEntry', 'name', '/e-%s')
 
-class SubjectActor(AcidipyActor, AcidipyActorCreate):
+class SubjectActor(AcidipyActor):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'vzSubj', 'name', '/subj-%s')
 
-class SubnetActor(AcidipyActor, AcidipyActorCreate):
+class SubnetActor(AcidipyActor):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fvSubnet', 'ip', '/subnet-[%s]')
 
-class EPGActor(AcidipyActor, AcidipyActorHealth, AcidipyActorCreate):
+class EPGActor(AcidipyActor, AcidipyActorHealth):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fvAEPg', 'name', '/epg-%s')
 
-class EndpointActor(AcidipyActor, AcidipyActorCreate):
+class EndpointActor(AcidipyActor):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fvCEp', 'name', '/cep-%s')
 
-class PodActor(AcidipyActor, SubscribeActor):
+class PodActor(AcidipyActor):
     def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fabricPod', 'id', '/pod-%s')
     def health(self):
         url = '/api/node/class/fabricHealthTotal.json?query-target-filter=ne(fabricHealthTotal.dn,"topology/health")'
@@ -256,7 +250,7 @@ class AcidipyObject(dict):
         data[self.class_name] = {'attributes' : self}
         return json.dumps(data, sort_keys=True)
     
-    def attrs(self):
+    def keys(self):
         if self.class_name in PREPARE_ATTRIBUTES: return PREPARE_ATTRIBUTES[self.class_name]
         url = '/api/class/' + self.class_name + '.json?page=0&page-size=1'
         data = self.controller.get(url)
@@ -268,6 +262,9 @@ class AcidipyObject(dict):
         if 'id' in keys: keys.remove('id'); keys.insert(0, 'id')
         PREPARE_ATTRIBUTES[self.class_name] = keys
         return keys
+    
+    def dn(self):
+        return self['dn']
     
     def rn(self):
         dn = self['dn']
@@ -337,8 +334,16 @@ class AcidipyObject(dict):
                 ret.append(acidipy_obj)
         return ret
     
-    def Class(self, class_name):
-        return AcidipyActor(self, class_name)
+    def Class(self, class_name, class_pkey=None, class_ident=None):
+        return AcidipyActor(self, class_name, class_pkey, class_ident)
+    
+    def update(self):
+        if not self.controller.put('/api/mo/' + self['dn'] + '.json', data=self.toJson()): raise AcidipyUpdateError(self['dn'])
+        return True
+    
+    def delete(self):
+        if not self.controller.delete('/api/mo/' + self['dn'] + '.json'): raise AcidipyDeleteError(self['dn'])
+        return True
 
 class AcidipyObjectHealth:
     
@@ -352,16 +357,6 @@ class AcidipyObjectHealth:
                 return {'dn' : self['dn'], 'name' : self['name'], 'score' : int(hinst['attributes']['cur'])}
         raise AcidipyNonExistHealth(self['dn'])
 
-class AcidipyObjectModify:
-    
-    def update(self):
-        if not self.controller.put('/api/mo/' + self['dn'] + '.json', data=self.toJson()): raise AcidipyUpdateError(self['dn'])
-        return True
-    
-    def delete(self):
-        if not self.controller.delete('/api/mo/' + self['dn'] + '.json'): raise AcidipyDeleteError(self['dn'])
-        return True
-
 ###############################################################
 #  _____ ______   ________  ________  _______   ___          
 # |\   _ \  _   \|\   __  \|\   ___ \|\  ___ \ |\  \         
@@ -373,7 +368,7 @@ class AcidipyObjectModify:
 #
 ###############################################################
 
-class TenantObject(AcidipyObject, AcidipyObjectHealth, AcidipyObjectModify):
+class TenantObject(AcidipyObject, AcidipyObjectHealth):
     
     def __patch__(self):
         self.Filter = FilterActor(self)
@@ -384,95 +379,82 @@ class TenantObject(AcidipyObject, AcidipyObjectHealth, AcidipyObjectModify):
         self.AppProfile = AppProfileActor(self)
         
         
-class FilterObject(AcidipyObject, AcidipyObjectModify):
+class FilterObject(AcidipyObject):
     
     def __patch__(self):
         self.FilterEntry = FilterEntryActor(self)
 
-class ContractObject(AcidipyObject, AcidipyObjectModify):
+class ContractObject(AcidipyObject):
     
     def __patch__(self):
         self.Subject = SubjectActor(self)
 
-class ContextObject(AcidipyObject, AcidipyObjectHealth, AcidipyObjectModify): pass
+class ContextObject(AcidipyObject, AcidipyObjectHealth): pass
      
-class L3OutObject(AcidipyObject, AcidipyObjectModify):
+class L3OutObject(AcidipyObject):
     
     def __patch__(self):
         self.L3Profile = L3ProfileActor(self)
-    
-    def relate2Context(self, vrf_object, **attributes):
-        if isinstance(vrf_object, ContextObject):
-            attributes['tnFvCtxName'] = vrf_object['name']
+        
+    def relate(self, obj, **attributes):
+        if isinstance(obj, ContextObject):
+            attributes['tnFvCtxName'] = obj['name']
             if self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'l3extRsEctx' : {'attributes' : attributes}})): return True
-        raise AcidipyRelateError(self['dn'] + ' << >> ' + vrf_object['dn'])
-
+        raise AcidipyRelateError(self['dn'] + ' << >> ' + obj['dn'])
+    
 class L3ProfileObject(AcidipyObject): pass
 
-class BridgeDomainObject(AcidipyObject, AcidipyObjectHealth, AcidipyObjectModify):
+class BridgeDomainObject(AcidipyObject, AcidipyObjectHealth):
      
     def __patch__(self):
         self.Subnet = SubnetActor(self)
-         
-    def relate2Context(self, vrf_object, **attributes):
-        if isinstance(vrf_object, ContextObject):
-            attributes['tnFvCtxName'] = vrf_object['name']
+        
+    def relate(self, obj, **attributes):
+        if isinstance(obj, ContextObject):
+            attributes['tnFvCtxName'] = obj['name']
             if self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsCtx' : {'attributes' : attributes}})): return True
-        raise AcidipyRelateError(self['dn'] + ' << >> ' + vrf_object['dn'])
-    
-    def relate2L3Out(self, out_object, **attributes):
-        if isinstance(out_object, L3OutObject):
-            attributes['tnL3extOutName'] = out_object['name']
+        elif isinstance(obj, L3OutObject):
+            attributes['tnL3extOutName'] = obj['name']
             if self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsBDToOut' : {'attributes' : attributes}})): return True
-        raise AcidipyRelateError(self['dn'] + ' << >> ' + out_object['dn']) 
- 
-class AppProfileObject(AcidipyObject, AcidipyObjectHealth, AcidipyObjectModify):
+        raise AcidipyRelateError(self['dn'] + ' << >> ' + obj['dn'])
+         
+class AppProfileObject(AcidipyObject, AcidipyObjectHealth):
      
     def __patch__(self):
         self.EPG = EPGActor(self)
 
-class FilterEntryObject(AcidipyObject, AcidipyObjectModify): pass
+class FilterEntryObject(AcidipyObject): pass
 
-class SubjectObject(AcidipyObject, AcidipyObjectModify):
+class SubjectObject(AcidipyObject):
     
-    def relate2Filter(self, flt_object, **attributes):
-        if isinstance(flt_object, FilterObject):
-            attributes['tnVzFilterName'] = flt_object['name']
+    def relate(self, obj, **attributes):
+        if isinstance(obj, FilterObject):
+            attributes['tnVzFilterName'] = obj['name']
             if self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'vzRsSubjFiltAtt' : {'attributes' : attributes}})): return True
-        raise AcidipyRelateError(self['dn'] + ' << >> ' + flt_object['dn'])
+        raise AcidipyRelateError(self['dn'] + ' << >> ' + obj['dn'])
          
-class SubnetObject(AcidipyObject, AcidipyObjectModify): pass
+class SubnetObject(AcidipyObject): pass
      
-class EPGObject(AcidipyObject, AcidipyObjectHealth, AcidipyObjectModify):
+class EPGObject(AcidipyObject, AcidipyObjectHealth):
     
     def __patch__(self):
         self.Endpoint = EndpointActor(self)
-     
-    def relate2BridgeDomain(self, bd_object, **attributes):
-        if isinstance(bd_object, BridgeDomainObject):
-            attributes['tnFvBDName'] = bd_object['name']
+    
+    def relate(self, obj, **attributes):
+        if isinstance(obj, BridgeDomainObject):
+            attributes['tnFvBDName'] = obj['name']
             if self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsBd' : {'attributes' : attributes}})): return True
-        raise AcidipyRelateError(self['dn'] + ' << >> ' + bd_object['dn'])
-    
-    def relate2Provider(self, ctr_object, **attributes):
-        if isinstance(ctr_object, ContractObject):
-            attributes['tnVzBrCPName'] = ctr_object['name']
+        elif isinstance(obj, ContractObject):
+            attributes['tnVzBrCPName'] = obj['name']
             if self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsProv' : {'attributes' : attributes}})): return True
-        raise AcidipyRelateError(self['dn'] + ' << >> ' + ctr_object['dn'])
-    
-    def relate2Consumer(self, ctr_object, **attributes):
-        if isinstance(ctr_object, ContractObject):
-            attributes['tnVzBrCPName'] = ctr_object['name']
+        elif isinstance(obj, ContractObject):
+            attributes['tnVzBrCPName'] = obj['name']
             if self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsCons' : {'attributes' : attributes}})): return True
-        raise AcidipyRelateError(self['dn'] + ' << >> ' + ctr_object['dn'])
-    
-    def relate2StaticPath(self, path_object, encap, **attributes):
-        if isinstance(path_object, PathObject):
-            attributes['tDn'] = path_object['dn']
-            attributes['encap'] = encap
+        elif isinstance(obj, PathObject): # need "encap" attribute
+            attributes['tDn'] = obj['dn']
             if self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsPathAtt' : {'attributes' : attributes}})): return True
-        raise AcidipyRelateError(self['dn'] + ' << >> ' + path_object['dn'])
-
+        raise AcidipyRelateError(self['dn'] + ' << >> ' + obj['dn'])
+     
 class EndpointObject(AcidipyObject): pass
 
 class PodObject(AcidipyObject):
@@ -532,11 +514,11 @@ class PhysIfObject(AcidipyObject): pass
 #===============================================================================
 # Subscriber
 #===============================================================================
-class Subscriber(SystemThread, SchedTask):
+class Subscriber(Thread, Task):
     
     def __init__(self, controller):
-        SystemThread.__init__(self)
-        SchedTask.__init__(self, 30)
+        Thread.__init__(self)
+        Task.__init__(self, 30)
         self.controller = controller
         self.socket = None
         self.handlers = {}
@@ -578,7 +560,7 @@ class Subscriber(SystemThread, SchedTask):
                             if self.controller.debug: print('Subscribe : {}'.format(str(e)))
                             continue
     
-    def sched(self):
+    def task(self):
         for subscribe_id in self.events:
             try: self.controller.get('/api/subscriptionRefresh.json?id=%s' % subscribe_id)
             except: continue
@@ -595,13 +577,10 @@ class Subscriber(SystemThread, SchedTask):
             except: raise AcidipySubscriptionError()
         else: raise AcidipySubscriptionError()
 
-class SubscribeHandler:
-    def subscribe(self, status, obj): pass
-
 #===============================================================================
 # Controller
 #===============================================================================
-class Controller(Session, AcidipyObject, SchedTask):
+class Controller(Session, AcidipyObject, Task):
     
     class Actor:
         
@@ -611,7 +590,7 @@ class Controller(Session, AcidipyObject, SchedTask):
             if class_name in PREPARE_CLASSES: self.prepare_class = globals()[PREPARE_CLASSES[class_name]]
             else: self.prepare_class = None
         
-        def attrs(self):
+        def keys(self):
             if self.class_name in PREPARE_ATTRIBUTES: return PREPARE_ATTRIBUTES[self.class_name]
             url = '/api/class/' + self.class_name + '.json?page=0&page-size=1'
             data = self.controller.get(url)
@@ -658,6 +637,10 @@ class Controller(Session, AcidipyObject, SchedTask):
             try: return int(data[0]['moCount']['attributes']['count'])
             except: raise AcidipyNonExistCount(self.class_name)
             
+        def subscribe(self, handler):
+            handler.class_name = self.class_name
+            self.controller.subscriber.register(handler)
+            
     class ActorHealth:
         
         def health(self):
@@ -673,43 +656,43 @@ class Controller(Session, AcidipyObject, SchedTask):
                     ret.append(obj)
             return ret
     
-    class FilterActor(Actor, SubscribeActor):
+    class FilterActor(Actor):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'vzFilter')
     
-    class ContractActor(Actor, SubscribeActor):
+    class ContractActor(Actor):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'vzBrCP')
     
-    class ContextActor(Actor, ActorHealth, SubscribeActor):
+    class ContextActor(Actor, ActorHealth):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fvCtx')
     
-    class L3OutActor(Actor, SubscribeActor):
+    class L3OutActor(Actor):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'l3extOut')
     
-    class L3ProfileActor(Actor, SubscribeActor):
+    class L3ProfileActor(Actor):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'l3extInstP')
         
-    class BridgeDomainActor(Actor, ActorHealth, SubscribeActor):
+    class BridgeDomainActor(Actor, ActorHealth):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fvBD')
     
-    class AppProfileActor(Actor, ActorHealth, SubscribeActor):
+    class AppProfileActor(Actor, ActorHealth):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fvAp')
     
-    class FilterEntryActor(Actor, SubscribeActor):
+    class FilterEntryActor(Actor):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'vzEntry')
     
-    class SubjectActor(Actor, SubscribeActor):
+    class SubjectActor(Actor):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'vzSubj')
     
-    class SubnetActor(Actor, SubscribeActor):
+    class SubnetActor(Actor):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fvSubnet')
     
-    class EPGActor(Actor, ActorHealth, SubscribeActor):
+    class EPGActor(Actor, ActorHealth):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fvAEPg')
         
-    class EndpointActor(Actor, SubscribeActor):
+    class EndpointActor(Actor):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fvCEp')
         
-    class NodeActor(Actor, SubscribeActor):
+    class NodeActor(Actor):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fabricNode')
         def health(self):
             url = '/api/node/class/healthInst.json?query-target-filter=wcard(healthInst.dn,"^sys/health")'
@@ -722,19 +705,19 @@ class Controller(Session, AcidipyObject, SchedTask):
                     ret.append(obj)
             return ret
     
-    class PathsActor(Actor, SubscribeActor):
+    class PathsActor(Actor):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fabricPathEpCont')
     
-    class VPathsActor(Actor, SubscribeActor):
+    class VPathsActor(Actor):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fabricProtPathEpCont')
     
-    class PathActor(Actor, SubscribeActor):
+    class PathActor(Actor):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fabricPathEp')
     
-    class SystemActor(Actor, SubscribeActor):
+    class SystemActor(Actor):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'topSystem')
     
-    class PhysIfActor(Actor, SubscribeActor):
+    class PhysIfActor(Actor):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'l1PhysIf')
         def health(self):
             url = '/api/node/class/healthInst.json?query-target-filter=wcard(healthInst.dn,"phys/health")'
@@ -747,19 +730,20 @@ class Controller(Session, AcidipyObject, SchedTask):
                     ret.append(obj)
             return ret
     
-    class FaultActor(Actor, SubscribeActor):
+    class FaultActor(Actor):
         def __init__(self, controller): Controller.Actor.__init__(self, controller, 'faultInfo')
     
     class ActorDesc(dict):
         def __init__(self, controller, dn): dict.__init__(self, dn=dn); self.controller = controller
     
-    def __init__(self, ip, user, pwd, conns=1, conn_max=2, debug=False, week=False):
+    def __init__(self, ip, user, pwd, conns=1, conn_max=2, retry=3, debug=False, week=False):
         Session.__init__(self,
                          ip=ip,
                          user=user,
                          pwd=pwd,
                          conns=conns,
                          conn_max=conn_max,
+                         retry=retry,
                          debug=debug,
                          week=week)
         AcidipyObject.__init__(self,
@@ -768,7 +752,7 @@ class Controller(Session, AcidipyObject, SchedTask):
                                pwd=pwd,
                                conns=conns,
                                conn_max=conn_max)
-        SchedTask.__init__(self, 180)
+        Task.__init__(self, 180)
         
         self.class_name = 'Controller'
         self.scheduler = Scheduler(10)
@@ -809,7 +793,7 @@ class Controller(Session, AcidipyObject, SchedTask):
         self.scheduler.stop()
         Session.close(self)
                 
-    def sched(self): self.refresh()
+    def task(self): self.refresh()
         
     def detail(self): return self
     
@@ -843,310 +827,76 @@ class Controller(Session, AcidipyObject, SchedTask):
 
 class MultiDomain(dict):
     
-    class TenantActor:
-        def __init__(self, multidom): self.multidom = multidom
+    class Actor:
+        
+        def __init__(self, multi_dom, actor_name):
+            self.multi_dom = multi_dom
+            self.actor_name = actor_name
+        
         def list(self, detail=False, sort=None, page=None, **clause):
             ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Tenant.list(detail, sort, page, **clause)
-            return ret
-        def health(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Tenant.health()
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Tenant.count()
-            return ret
-    
-    class FilterActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Filter.list(detail, sort, page, **clause)
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Filter.count()
-            return ret
-    
-    class ContractActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Contract.list(detail, sort, page, **clause)
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Contract.count()
-            return ret
-    
-    class ContextActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Context.list(detail, sort, page, **clause)
-            return ret
-        def health(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Context.health()
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Context.count()
-            return ret
-    
-    class L3OutActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].L3Out.list(detail, sort, page, **clause)
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].L3Out.count()
-            return ret
-    
-    class L3ProfileActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].L3Profile.list(detail, sort, page, **clause)
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].L3Profile.count()
+            for dom_name in self.multi_dom: ret[dom_name] = self.multi_dom[dom_name].__getattribute__(self.actor_name).list(detail, sort, page, **clause)
             return ret
         
-    class BridgeDomainActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].BridgeDomain.list(detail, sort, page, **clause)
-            return ret
         def health(self):
             ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].BridgeDomain.health()
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].BridgeDomain.count()
-            return ret
-    
-    class AppProfileActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].AppProfile.list(detail, sort, page, **clause)
-            return ret
-        def health(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].AppProfile.health()
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].AppProfile.count()
-            return ret
-    
-    class FilterEntryActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].FilterEntry.list(detail, sort, page, **clause)
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].FilterEntry.count()
-            return ret
-    
-    class SubjectActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Subject.list(detail, sort, page, **clause)
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Subject.count()
-            return ret
-    
-    class SubnetActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Subnet.list(detail, sort, page, **clause)
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Subnet.count()
+            for dom_name in self.multi_dom: ret[dom_name] = self.multi_dom[dom_name].__getattribute__(self.actor_name).health()
             return ret
         
-    class EPGActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].EPG.list(detail, sort, page, **clause)
-            return ret
-        def health(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].EPG.health()
-            return ret
         def count(self):
             ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].EPG.count()
+            for dom_name in self.multi_dom: ret[dom_name] = self.multi_dom[dom_name].__getattribute__(self.actor_name).count()
             return ret
     
-    class EndpointActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Endpoint.list(detail, sort, page, **clause)
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Endpoint.count()
-            return ret
-    
-    class PodActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Pod.list(detail, sort, page, **clause)
-            return ret
-        def health(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Pod.health()
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Pod.count()
-            return ret
-    
-    class NodeActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Node.list(detail, sort, page, **clause)
-            return ret
-        def health(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Node.health()
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Node.count()
-            return ret
-        
-    class PathsActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Paths.list(detail, sort, page, **clause)
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Paths.count()
-            return ret
-    
-    class VPathsActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].VPaths.list(detail, sort, page, **clause)
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].VPaths.count()
-        
-    class PathActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Path.list(detail, sort, page, **clause)
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Path.count()
-        
-    class SystemActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].System.list(detail, sort, page, **clause)
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].System.count()
-    
-    class PhysIfActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].PhysIf.list(detail, sort, page, **clause)
-            return ret
-        def health(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].PhysIf.health()
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].PhysIf.count()
-            return ret
-        
     class ClassActor:
-        def __init__(self, multidom, class_name): self.multidom = multidom; self.class_name = class_name
+        
+        def __init__(self, multidom, class_name):
+            self.multidom = multidom
+            self.class_name = class_name
+            
         def list(self, detail=False, sort=None, page=None, **clause):
             ret = {}
             for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Class(self.class_name).list(detail, sort, page, **clause)
             return ret
+        
         def count(self):
             ret = {}
             for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Class(self.class_name).count()
             return ret
-        
-    class FaultActor:
-        def __init__(self, multidom): self.multidom = multidom
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Fault.list(detail, sort, page, **clause)
-            return ret
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Fault.count()
-            return ret
     
-    def __init__(self, conns=1, conn_max=2, debug=False, week=False):
+    def __init__(self, conns=1, conn_max=2, retry=3, debug=False, week=False):
         dict.__init__(self)
         self.conns = conns
         self.conn_max = conn_max
+        self.retry = retry
         self.debug = debug
         self.week = week
         
-        self.Tenant = MultiDomain.TenantActor(self)
+        self.Tenant = MultiDomain.Actor(self, 'Tenant')
+        self.Filter = MultiDomain.Actor(self, 'Filter')
+        self.Contract = MultiDomain.Actor(self, 'Contract')
+        self.Context = MultiDomain.Actor(self, 'Context')
+        self.L3Out = MultiDomain.Actor(self, 'L3Out')
+        self.L3Profile = MultiDomain.Actor(self, 'L3Profile')
+        self.BridgeDomain = MultiDomain.Actor(self, 'BridgeDomain')
+        self.AppProfile = MultiDomain.Actor(self, 'AppProfile')
+        self.FilterEntry = MultiDomain.Actor(self, 'FilterEntry')
+        self.Subject = MultiDomain.Actor(self, 'Subject')
+        self.Subnet = MultiDomain.Actor(self, 'Subnet')
+        self.EPG = MultiDomain.Actor(self, 'EPG')
+        self.Endpoint = MultiDomain.Actor(self, 'Endpoint')
         
-        self.Filter = MultiDomain.FilterActor(self)
-        self.Contract = MultiDomain.ContractActor(self)
-        self.Context = MultiDomain.ContextActor(self)
-        self.L3Out = MultiDomain.L3OutActor(self)
-        self.L3Profile = MultiDomain.L3ProfileActor(self)
-        self.BridgeDomain = MultiDomain.BridgeDomainActor(self)
-        self.AppProfile = MultiDomain.AppProfileActor(self)
-        self.FilterEntry = MultiDomain.FilterEntryActor(self)
-        self.Subject = MultiDomain.SubjectActor(self)
-        self.Subnet = MultiDomain.SubnetActor(self)
-        self.EPG = MultiDomain.EPGActor(self)
-        self.Endpoint = MultiDomain.EndpointActor(self)
+        self.Pod = MultiDomain.Actor(self, 'Pod')
         
-        self.Pod = MultiDomain.PodActor(self)
+        self.Node = MultiDomain.Actor(self, 'Node')
+        self.Paths = MultiDomain.Actor(self, 'Paths')
+        self.VPaths = MultiDomain.Actor(self, 'VPaths')
+        self.Path = MultiDomain.Actor(self, 'Path')
+        self.System = MultiDomain.Actor(self, 'System')
+        self.PhysIf = MultiDomain.Actor(self, 'PhysIf')
         
-        self.Node = MultiDomain.NodeActor(self)
-        self.Paths = MultiDomain.PathsActor(self)
-        self.VPaths = MultiDomain.VPathsActor(self)
-        self.Path = MultiDomain.PathActor(self)
-        self.System = MultiDomain.SystemActor(self)
-        self.PhysIf = MultiDomain.PhysIfActor(self)
-        
-        self.Fault = MultiDomain.FaultActor(self)
-        
+        self.Fault = MultiDomain.Actor(self, 'Fault')
+    
     def Class(self, class_name):
         return MultiDomain.ClassActor(self, class_name)
     
@@ -1157,11 +907,12 @@ class MultiDomain(dict):
         for dom_name in self: ret[dom_name] = self[dom_name].health()
         return ret
         
-    def addDomain(self, domain_name, ip, user, pwd, conns=None, conn_max=None, debug=None, week=None):
+    def addDomain(self, domain_name, ip, user, pwd, conns=None, conn_max=None, retry=None, debug=None, week=None):
         if domain_name in self: return False
-        opts = {'ip' : ip, 'user' : user, 'pwd' : pwd, 'conns' : self.conns, 'conn_max' : self.conn_max, 'debug' : self.debug, 'week' : self.week}
+        opts = {'ip' : ip, 'user' : user, 'pwd' : pwd}
         if conns != None: opts['conns'] = conns
         if conn_max != None: opts['conn_max'] = conn_max
+        if retry != None: opts['retry'] = retry
         if debug != None: opts['debug'] = debug
         if week != None: opts['week'] = week
         try: ctrl = Controller(**opts)
