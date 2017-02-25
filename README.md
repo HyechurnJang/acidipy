@@ -3,9 +3,9 @@ Cisco ACI Python API
 
 **ACI** **D**eveloping **I**nterface for **PY**thon
 
-version : 0.10.4
+version : 0.10.6
 
-last change : Separated commons & code arranged
+last change : gevent working
 
 ![Relations](./doc/Relation.png)
 
