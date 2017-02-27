@@ -37,7 +37,7 @@ class Session:
             self.session = requests.Session()
             self.session.mount('https://', requests.adapters.HTTPAdapter(pool_connections=self.conns, pool_maxsize=self.conn_max))
             for i in range(0, self.retry):
-                resp = self.session.post(self.url + '/api/aaaLogin.json', data=json.dumps({'aaaUser': {'attributes': {'name': self.user, 'pwd': self.pwd}}}, sort_keys=True), verify=False)
+                resp = self.session.post(self.url + '/api/aaaLogin.json', data=json.dumps({'aaaUser': {'attributes': {'name': self.user, 'pwd': self.pwd}}}), verify=False)
                 if resp.status_code == 200:
                     self.token = resp.cookies['APIC-cookie']
                     self.cookie = 'APIC-cookie=' + self.token
