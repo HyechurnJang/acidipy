@@ -11,6 +11,12 @@ import json
 from websocket import create_connection
 from pygics import Thread, Task, Scheduler
 
+# GEVENT
+import gevent.monkey
+gevent.monkey.patch_socket()
+gevent.monkey.patch_ssl()
+import gevent
+
 from .static import *
 from .session import Session
 
@@ -96,8 +102,12 @@ class AcidipyActor:
                 return acidipy_obj
         raise AcidipyNonExistData(self.parent['dn'] + (self.class_ident % rn))
     
-    def count(self):
-        url = '/api/node/class/' + self.class_name + '.json?query-target-filter=wcard(' + self.class_name + '.dn,"' + self.parent['dn'] + '/.*")&rsp-subtree-include=count'
+    def count(self, **clause):
+        url = '/api/node/class/' + self.class_name + '.json?query-target-filter=and(wcard(' + self.class_name + '.dn,"' + self.parent['dn'] + '/.*"),'
+#         url = '/api/node/class/' + self.class_name + '.json?' # query-target-filter=wcard(' + self.class_name + '.dn,"' + self.parent['dn'] + '/.*")&rsp-subtree-include=count'
+        if len(clause) > 0:
+            for key in clause: url += 'eq(%s.%s,"%s"),' % (self.class_name, key, clause[key])
+        url += ')&rsp-subtree-include=count'
         data = self.controller.get(url)
         try: return int(data[0]['moCount']['attributes']['count'])
         except: raise AcidipyNonExistCount(self.class_name)
@@ -631,8 +641,13 @@ class Controller(Session, AcidipyObject, Task):
                     ret.append(acidipy_obj)
             return ret
         
-        def count(self):
-            url = '/api/node/class/' + self.class_name + '.json?rsp-subtree-include=count'
+        def count(self, **clause):
+            url = '/api/node/class/' + self.class_name + '.json?'
+            if len(clause) > 0:
+                url += 'query-target-filter=and('
+                for key in clause: url += 'eq(%s.%s,"%s"),' % (self.class_name, key, clause[key])
+                url += ')&'
+            url += 'rsp-subtree-include=count'
             data = self.controller.get(url)
             try: return int(data[0]['moCount']['attributes']['count'])
             except: raise AcidipyNonExistCount(self.class_name)
@@ -836,33 +851,68 @@ class MultiDomain(dict):
         def list(self, detail=False, sort=None, page=None, **clause):
             ret = {}
             for dom_name in self.multi_dom: ret[dom_name] = self.multi_dom[dom_name].__getattribute__(self.actor_name).list(detail, sort, page, **clause)
-            return ret
+            return ret 
+            
+            # GEVENT
+#             ret = {}; fetchs = []
+#             def fetch(multi_dom, dom_name, actor_name, detail, sort, page, clause, ret): ret[dom_name] = multi_dom[dom_name].__getattribute__(actor_name).list(detail, sort, page, **clause) 
+#             for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.actor_name, detail, sort, page, clause, ret))
+#             gevent.joinall(fetchs)
+#             return ret
         
         def health(self):
             ret = {}
             for dom_name in self.multi_dom: ret[dom_name] = self.multi_dom[dom_name].__getattribute__(self.actor_name).health()
-            return ret
-        
-        def count(self):
+            return ret 
+            
+            # GEVENT
+#             ret = {}; fetchs = []
+#             def fetch(multi_dom, dom_name, actor_name, ret): ret[dom_name] = multi_dom[dom_name].__getattribute__(actor_name).health() 
+#             for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.actor_name, ret))
+#             gevent.joinall(fetchs)
+#             return ret
+            
+        def count(self, **clause):
             ret = {}
-            for dom_name in self.multi_dom: ret[dom_name] = self.multi_dom[dom_name].__getattribute__(self.actor_name).count()
-            return ret
+            for dom_name in self.multi_dom: ret[dom_name] = self.multi_dom[dom_name].__getattribute__(self.actor_name).count(**clause)
+            return ret 
+            
+            # GEVENT
+#             ret = {}; fetchs = []
+#             def fetch(multi_dom, dom_name, actor_name, clause, ret): ret[dom_name] = multi_dom[dom_name].__getattribute__(actor_name).count(**clause) 
+#             for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.actor_name, clause, ret))
+#             gevent.joinall(fetchs)
+#             return ret
     
     class ClassActor:
         
-        def __init__(self, multidom, class_name):
-            self.multidom = multidom
+        def __init__(self, multi_dom, class_name):
+            self.multi_dom = multi_dom
             self.class_name = class_name
             
         def list(self, detail=False, sort=None, page=None, **clause):
             ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Class(self.class_name).list(detail, sort, page, **clause)
+            for dom_name in self.multi_dom: ret[dom_name] = self.multi_dom[dom_name].Class(self.class_name).list(detail, sort, page, **clause)
+            return ret 
+        
+            # GEVENT
+#             ret = {}; fetchs = []
+#             def fetch(multi_dom, dom_name, class_name, detail, sort, page, clause, ret): ret[dom_name] = multi_dom[dom_name].Class(class_name).list(detail, sort, page, **clause)
+#             for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.class_name, detail, sort, page, clause, ret))
+#             gevent.joinall(fetchs)
+#             return ret
+        
+        def count(self, **clause):
+            ret = {}
+            for dom_name in self.multi_dom: ret[dom_name] = self.multi_dom[dom_name].Class(self.class_name).count(*clause)
             return ret
         
-        def count(self):
-            ret = {}
-            for dom_name in self.multidom: ret[dom_name] = self.multidom[dom_name].Class(self.class_name).count()
-            return ret
+            # GEVENT
+#             ret = {}; fetchs = []
+#             def fetch(multi_dom, dom_name, class_name, clause, ret): ret[dom_name] = multi_dom[dom_name].Class(class_name).count(**clause)
+#             for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.class_name, clause, ret))
+#             gevent.joinall(fetchs)
+#             return ret
     
     def __init__(self, conns=1, conn_max=2, retry=3, debug=False, week=False):
         dict.__init__(self)
@@ -910,11 +960,11 @@ class MultiDomain(dict):
     def addDomain(self, domain_name, ip, user, pwd, conns=None, conn_max=None, retry=None, debug=None, week=None):
         if domain_name in self: return False
         opts = {'ip' : ip, 'user' : user, 'pwd' : pwd}
-        if conns != None: opts['conns'] = conns
-        if conn_max != None: opts['conn_max'] = conn_max
-        if retry != None: opts['retry'] = retry
-        if debug != None: opts['debug'] = debug
-        if week != None: opts['week'] = week
+        opts['conns'] = conns if conns != None else self.conns
+        opts['conn_max'] = conn_max if conn_max != None else self.conn_max
+        opts['retry'] = retry if retry != None else self.retry
+        opts['debug'] = debug if debug != None else self.debug
+        opts['week'] = week if week != None else self.week
         try: ctrl = Controller(**opts)
         except: return False
         self[domain_name] = ctrl
