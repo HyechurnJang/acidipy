@@ -1,25 +1,28 @@
 acidipy
-Cisco ACI Python API
 
-ACI Developing Interface for PYthon
+Cisco ACI Python API : ACI Developing Interface for PYthon
 
-Install
+1. Install
 
-	$ python setup.py sdist
-	$ python setup.py install
+	1.1 From GIT
+		$ python setup.py build
+		$ python setup.py install
 
-Example
+	1.2 From PIP
+		$ pip install acidipy
+
+2. Example
 
 	import acidipy
 	
-	controller = acidipy.Controller('10.72.86.xx', 'admin', 'password') # Get controller connection
+	controller = acidipy.Controller('xxx.xxx.xxx.xxx', 'admin', 'password') # Get controller connection
 	
 	tenant = controller.Tenant.create(name='example-tenant') # Create tenant
 	bd = tenant.BridgeDomain.create(name='example-bd') # Create bridge domain
 	ap = tenant.AppProfile.create(name='example-ap') # Create application profile
 	epg = ap.EPG.create(name='example-epg') # Create endpoint group
 	
-	epg.relate2BridgeDomain(bd) # Relate endpoint group to bridge domain
+	epg.relate(bd) # Relate endpoint group to bridge domain
 	
 	print controller.Tenant.list() # Retrive list of tenant
 	print tenant.AppProfile('example-ap').EPG.list() # Retrive list of endpoint group about tenant created

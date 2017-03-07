@@ -3,9 +3,9 @@ Cisco ACI Python API
 
 **ACI** **D**eveloping **I**nterface for **PY**thon
 
-version : 0.10.6
+version : 0.10.8
 
-last change : gevent working
+last change : PyPI Release 0.10.8
 
 ![Relations](./doc/Relation.png)
 
@@ -31,7 +31,8 @@ last change : gevent working
 | vzBrCP | ContractObject | Contract | Contract |
 | vzEntry | FilterEntryObject | FilterEntry | Filter Entry |
 | vzSubj | SubjectObject | Subject | Subject of Contract |
-| l3extOut | L3ExternalObject | L3External | L3 External |
+| l3extOut | L3OutObject | L3Out | L3 External Out |
+| l3extInstP | L3ProfileObject | L3Profile | L3 External Profile |
 | topSystem | SystemObject | System | Node System Details |
 | l1PhysIf | PhysIfObject | PhysIf | Physical Interfaces |
 
@@ -39,21 +40,27 @@ last change : gevent working
 
 ## Install
 
-	$ python setup.py sdist
+**From GIT**
+
+	$ python setup.py build
 	$ python setup.py install
+
+**From PIP**
+
+	$ pip install acidipy
 
 ## Example Acidipy
 
 	import acidipy
 	
-	controller = acidipy.Controller('10.72.86.21', 'admin', '1234Qwer') # Get controller connection
+	controller = acidipy.Controller('xxx.xxx.xxx.xxx', 'admin', '1234Qwer') # Get controller connection
 	
 	tenant = controller.Tenant.create(name='example-tenant') # Create tenant
 	bd = tenant.BridgeDomain.create(name='example-bd') # Create bridge domain
 	ap = tenant.AppProfile.create(name='example-ap') # Create application profile
 	epg = ap.EPG.create(name='example-epg') # Create endpoint group
 	
-	epg.relate2BridgeDomain(bd) # Relate endpoint group to bridge domain
+	epg.relate(bd) # Relate endpoint group to bridge domain
 	
 	print controller.Tenant.list() # Retrive list of tenant
 	print tenant.AppProfile('example-ap').EPG.list() # Retrive list of endpoint group about tenant created

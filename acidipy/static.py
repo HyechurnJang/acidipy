@@ -4,58 +4,87 @@ Created on 2016. 10. 24.
 @author: "comfact"
 '''
 
+ACIDIPY_REFRESH_SEC = 180
+ACIDIPY_SUBSCRIBER_REFRESH_SEC = 60
+
 #===============================================================================
 # Exception & Error
 #===============================================================================
 
-class AcidipyError(Exception):
-    def __init__(self, code, text):
-        self.code = code
-        self.text = text
-    def __str__(self): return 'code:%s-text:%s' % (self.code, self.text)
+class ExceptAcidipySession(Exception):
+    def __init__(self, session):
+        Exception.__init__(self, '[Error]Acidipy:Session:%s' % session.url)
+        if session.debug: print('[Error]Acidipy:Session:%s' % session.url)
 
-class AcidipySessionError(Exception): 
-    def __str__(self): return 'Acidipy Session Error'
+class ExceptAcidipyResponse(Exception):
+    def __init__(self, session, code, text):
+        Exception.__init__(self, '[Error]Acidipy:Response:%s:%s' % (code, text))
+        if session.debug: print('[Error]Acidipy:Response:%s:%s' % (code, text))
+        
+class ExceptAcidipySubscriberSession(Exception):
+    def __init__(self, subscriber):
+        Exception.__init__(self, '[Error]Acidipy:Subscriber:Session:wss://%s/socket%s' % (subscriber.controller.ip, subscriber.controller.cookie))
+        if subscriber.controller.debug: print('[Error]Acidipy:Subscriber:Session:wss://%s/socket%s' % (subscriber.controller.ip, subscriber.controller.cookie))
 
-class AcidipySubscriptionError(Exception): pass
+class ExceptAcidipySubscriberRegister(Exception):
+    def __init__(self, subscriber, exp=None):
+        Exception.__init__(self, '[Error]Acidipy:Subscriber:Register:wss://%s/socket%s:%s' % (subscriber.controller.ip, subscriber.controller.cookie, str(exp)))
+        if subscriber.controller.debug: print('[Error]Acidipy:Subscriber:Register:wss://%s/socket%s:%s' % (subscriber.controller.ip, subscriber.controller.cookie, str(exp)))
 
-class AcidipyAttributesError(Exception): pass
+class ExceptAcidipyProcessing(Exception):
+    def __init__(self, session, msg):
+        Exception.__init__(self, '[Error]Acidipy:Processing:%s:' % msg)
+        if session.debug: print('[Error]Acidipy:Processing:%s:' % msg)
 
-class AcidipyNonExistData(Exception):
-    def __init__(self, target_name): self.target_name = target_name
-    def __str__(self): return 'Non exist data of %s' % self.target_name
-    
-class AcidipyNonExistParent(Exception):
-    def __init__(self, target_name): self.target_name = target_name
-    def __str__(self): return 'Non exist parent of %s' % self.target_name
-    
-class AcidipyNonExistChildren(Exception):
-    def __init__(self, target_name): self.target_name = target_name
-    def __str__(self): return 'Non exist children of %s' % self.target_name
-    
-class AcidipyNonExistHealth(Exception):
-    def __init__(self, target_name): self.target_name = target_name
-    def __str__(self): return 'Non exist health of %s' % self.target_name
-    
-class AcidipyNonExistCount(Exception):
-    def __init__(self, target_name): self.target_name = target_name
-    def __str__(self): return 'Non exist count of %s' % self.target_name
-    
-class AcidipyCreateError(Exception):
-    def __init__(self, target_name): self.target_name = target_name
-    def __str__(self): return 'Create failed with %s' % self.target_name
-    
-class AcidipyUpdateError(Exception):
-    def __init__(self, target_name): self.target_name = target_name
-    def __str__(self): return 'Update failed with %s' % self.target_name
-    
-class AcidipyDeleteError(Exception):
-    def __init__(self, target_name): self.target_name = target_name
-    def __str__(self): return 'Delete failed with %s' % self.target_name
-    
-class AcidipyRelateError(Exception):
-    def __init__(self, target_name): self.target_name = target_name
-    def __str__(self): return 'Relate failed with %s' % self.target_name
+class ExceptAcidipyAttributes(Exception):
+    def __init__(self, session, target, exp):
+        Exception.__init__(self, '[Error]Acidipy:Attributes:%s:%s' % (target, str(exp)))
+        if session.debug: print('[Error]Acidipy:Attributes:%s:%s' % (target, str(exp)))
+
+class ExceptAcidipyRetriveObject(Exception):
+    def __init__(self, session, target, exp):
+        Exception.__init__(self, '[Error]Acidipy:RetriveObject:%s:%s' % (target, str(exp)))
+        if session.debug: print('[Error]Acidipy:RetriveObject:%s:%s' % (target, str(exp)))
+
+class ExceptAcidipyCreateObject(Exception):
+    def __init__(self, session, target, exp):
+        Exception.__init__(self, '[Error]Acidipy:CreateObject:%s:%s' % (target, str(exp)))
+        if session.debug: print('[Error]Acidipy:CreateObject:%s:%s' % (target, str(exp)))
+
+class ExceptAcidipyUpdateObject(Exception):
+    def __init__(self, session, target, exp):
+        Exception.__init__(self, '[Error]Acidipy:UpdateObject:%s:%s' % (target, str(exp)))
+        if session.debug: print('[Error]Acidipy:UpdateObject:%s:%s' % (target, str(exp)))
+
+class ExceptAcidipyDeleteObject(Exception):
+    def __init__(self, session, target, exp):
+        Exception.__init__(self, '[Error]Acidipy:DeleteObject:%s:%s' % (target, str(exp)))
+        if session.debug: print('[Error]Acidipy:DeleteObject:%s:%s' % (target, str(exp)))
+
+class ExceptAcidipyRelateObject(Exception):
+    def __init__(self, session, target, exp):
+        Exception.__init__(self, '[Error]Acidipy:RelateObject:%s:%s' % (target, str(exp)))
+        if session.debug: print('[Error]Acidipy:RelateObject:%s:%s' % (target, str(exp)))
+
+class ExceptAcidipyNonExistData(Exception):
+    def __init__(self, session, target):
+        Exception.__init__(self, '[Error]Acidipy:NonExistData:%s' % target)
+        if session.debug: print('[Error]Acidipy:NonExistData:%s' % target)
+
+class ExceptAcidipyNonExistCount(Exception):
+    def __init__(self, session, target):
+        Exception.__init__(self, '[Error]Acidipy:NonExistCount:%s' % target)
+        if session.debug: print('[Error]Acidipy:NonExistCount:%s' % target)
+
+class ExceptAcidipyNonExistParent(Exception):
+    def __init__(self, session, target):
+        Exception.__init__(self, '[Error]Acidipy:NonExistParent:%s' % target)
+        if session.debug: print('[Error]Acidipy:NonExistParent:%s' % target)
+
+class ExceptAcidipyNonExistHealth(Exception):
+    def __init__(self, session, target):
+        Exception.__init__(self, '[Error]Acidipy:NonExistHealth:%s' % target)
+        if session.debug: print('[Error]Acidipy:NonExistHealth:%s' % target)
 
 #===============================================================================
 # Prepare Classes
