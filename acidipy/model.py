@@ -27,8 +27,8 @@ class Subscriber:
     # Background Worker
     class RefreshWork(Task):
         
-        def __init__(self, subscriber, refresh):
-            Task.__init__(self, refresh, refresh)
+        def __init__(self, subscriber, refresh_sec):
+            Task.__init__(self, refresh_sec, refresh_sec)
             self.subscriber = subscriber
         
         def run(self):
@@ -818,18 +818,18 @@ class Controller(Session, AcidipyObject):
     class ActorDesc(dict):
         def __init__(self, controller, dn): dict.__init__(self, dn=dn); self.controller = controller
     
-    def __init__(self, ip, user, pwd, refresh=ACIDIPY_REFRESH_SEC, **kargs):
+    def __init__(self, ip, user, pwd, refresh_sec=ACIDIPY_REFRESH_SEC, **kargs):
         Session.__init__(self,
                          ip=ip,
                          user=user,
                          pwd=pwd,
-                         refresh=refresh,
+                         refresh_sec=refresh_sec,
                          **kargs)
         AcidipyObject.__init__(self,
                                ip=ip,
                                user=user,
                                pwd=pwd,
-                               refresh=refresh,
+                               refresh_sec=refresh_sec,
                                **kargs)
         
         self.class_name = 'Controller'
@@ -954,13 +954,13 @@ class MultiDomain(dict):
                  conns=RestAPI.DEFAULT_CONN_SIZE,
                  conn_max=RestAPI.DEFAULT_CONN_MAX,
                  retry=RestAPI.DEFAULT_CONN_RETRY,
-                 refresh=ACIDIPY_REFRESH_SEC,
+                 refresh_sec=ACIDIPY_REFRESH_SEC,
                  debug=False):
         dict.__init__(self)
         self.conns = conns
         self.conn_max = conn_max
         self.retry = retry
-        self.refresh = refresh
+        self.refresh_sec = refresh_sec
         self.debug = debug
         
         self.Tenant = MultiDomain.Actor(self, 'Tenant')
@@ -1010,7 +1010,7 @@ class MultiDomain(dict):
                 'conns' : self.conns,
                 'conn_max' : self.conn_max,
                 'retry' : self.retry,
-                'refresh' : self.refresh,
+                'refresh_sec' : self.refresh_sec,
                 'debug' : self.debug}
         try: ctrl = Controller(**opts)
         except Exception as e:

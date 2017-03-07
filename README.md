@@ -3,9 +3,9 @@ Cisco ACI Python API
 
 **ACI** **D**eveloping **I**nterface for **PY**thon
 
-version : 0.10.8
+version : 0.10.9
 
-last change : PyPI Release 0.10.8
+last change : effected by changing pygics.RestAPI.refresh_sec
 
 ![Relations](./doc/Relation.png)
 
@@ -36,7 +36,7 @@ last change : PyPI Release 0.10.8
 | topSystem | SystemObject | System | Node System Details |
 | l1PhysIf | PhysIfObject | PhysIf | Physical Interfaces |
 
-**And Retrive Anything with Controller Object**
+**And Retrieve Anything with Controller Object through "Class()" Method**
 
 ## Install
 
