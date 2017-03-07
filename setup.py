@@ -13,7 +13,7 @@ setup(
     description='ACI Developing Interface for PYthon',
     long_description=read('README'),
     packages=['acidipy'],
-    install_requires=['pygics', 'gevent', 'pyaml', 'requests', 'websocket-client'],
+    install_requires=['gevent', 'pygics', 'pyaml', 'requests', 'websocket-client'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: Apache Software License',
