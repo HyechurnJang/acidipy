@@ -3,9 +3,9 @@ Cisco ACI Python API
 
 **ACI** **D**eveloping **I**nterface for **PY**thon
 
-version : 0.10.9
+version : 0.10.11
 
-last change : effected by changing pygics.RestAPI.refresh_sec
+last change : change object patching to property
 
 ![Relations](./doc/Relation.png)
 

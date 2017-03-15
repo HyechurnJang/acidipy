@@ -491,31 +491,40 @@ class AcidipyObjectHealth:
 
 class TenantObject(AcidipyObject, AcidipyObjectHealth):
     
-    def __patch__(self):
-        self.Filter = FilterActor(self)
-        self.Contract = ContractActor(self)
-        self.Context = ContextActor(self)
-        self.L3Out = L3OutActor(self)
-        self.BridgeDomain = BridgeDomainActor(self)
-        self.AppProfile = AppProfileActor(self)
-        
-        
+    @property
+    def Filter(self): return FilterActor(self)
+    
+    @property
+    def Contract(self): return ContractActor(self)
+    
+    @property
+    def Context(self): return ContextActor(self)
+    
+    @property
+    def L3Out(self): return L3OutActor(self)
+    
+    @property
+    def BridgeDomain(self): return BridgeDomainActor(self)
+    
+    @property
+    def AppProfile(self): return AppProfileActor(self)
+    
 class FilterObject(AcidipyObject):
     
-    def __patch__(self):
-        self.FilterEntry = FilterEntryActor(self)
+    @property
+    def FilterEntry(self): return FilterEntryActor(self)
 
 class ContractObject(AcidipyObject):
     
-    def __patch__(self):
-        self.Subject = SubjectActor(self)
+    @property
+    def Subject(self): return SubjectActor(self)
 
 class ContextObject(AcidipyObject, AcidipyObjectHealth): pass
      
 class L3OutObject(AcidipyObject):
     
-    def __patch__(self):
-        self.L3Profile = L3ProfileActor(self)
+    @property
+    def L3Profile(self): return L3ProfileActor(self)
         
     def relate(self, obj, **attributes):
         if isinstance(obj, ContextObject):
@@ -528,9 +537,9 @@ class L3OutObject(AcidipyObject):
 class L3ProfileObject(AcidipyObject): pass
 
 class BridgeDomainObject(AcidipyObject, AcidipyObjectHealth):
-     
-    def __patch__(self):
-        self.Subnet = SubnetActor(self)
+    
+    @property
+    def Subnet(self): return SubnetActor(self)
         
     def relate(self, obj, **attributes):
         if isinstance(obj, ContextObject):
@@ -546,9 +555,9 @@ class BridgeDomainObject(AcidipyObject, AcidipyObjectHealth):
         raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], ExceptAcidipyProcessing(self.controller, 'Relate Failed'))
          
 class AppProfileObject(AcidipyObject, AcidipyObjectHealth):
-     
-    def __patch__(self):
-        self.EPG = EPGActor(self)
+    
+    @property
+    def EPG(self): return EPGActor(self)
 
 class FilterEntryObject(AcidipyObject): pass
 
@@ -566,8 +575,8 @@ class SubnetObject(AcidipyObject): pass
      
 class EPGObject(AcidipyObject, AcidipyObjectHealth):
     
-    def __patch__(self):
-        self.Endpoint = EndpointActor(self)
+    @property
+    def Endpoint(self): return EndpointActor(self)
     
     def relate(self, obj, **attributes):
         if isinstance(obj, BridgeDomainObject):
@@ -596,10 +605,14 @@ class EndpointObject(AcidipyObject): pass
 
 class PodObject(AcidipyObject):
     
-    def __patch__(self):
-        self.Node = NodeActor(self)
-        self.Paths = PathsActor(self)
-        self.VPaths = VPathsActor(self)
+    @property
+    def Node(self): return NodeActor(self)
+    
+    @property
+    def Paths(self): return PathsActor(self)
+    
+    @property
+    def VPaths(self): return VPathsActor(self)
 
 class NodeObject(AcidipyObject):
     
@@ -619,19 +632,19 @@ class NodeObject(AcidipyObject):
             self.System.__patch__()
 
 class SystemObject(AcidipyObject):
-        
-    def __patch__(self):
-        self.PhysIf = PhysIfActor(self)
+    
+    @property
+    def PhysIf(self): return PhysIfActor(self)
         
 class PathsObject(AcidipyObject):
     
-    def __patch__(self):
-        self.Path = PathActor(self)
+    @property
+    def Path(self): return PathActor(self)
         
 class VPathsObject(AcidipyObject):
     
-    def __patch__(self):
-        self.Path = PathActor(self)
+    @property
+    def Path(self): return PathActor(self)
 
 class PathObject(AcidipyObject): pass
 
