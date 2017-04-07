@@ -3,9 +3,9 @@ Cisco ACI Python API
 
 **ACI** **D**eveloping **I**nterface for **PY**thon
 
-version : 0.10.11
+version : 0.11.0
 
-last change : change object patching to property
+last change : filter utf-16 character from utf-8 response data & code arranged
 
 ![Relations](./doc/Relation.png)
 
@@ -15,26 +15,26 @@ last change : change object patching to property
 
 | ACI Object Name | Acidipy Object Name | Reserved Code Name | Description |
 |-----------------|---------------------|--------------------|-------------|
-| fvTenant | TenantObject | Tenant | Tenant |
-| fvCtx | ContextObject | Context | Virtual Routing and Forwarding (VRF) |
-| fvBD | BridgeDomainObject | BridgeDomain | Bridge Domain |
-| fvAp | AppProfileObject | AppProfile | Appliation Profile |
-| fvSubnet | SubnetObject | Subnet | Subnet |
-| fvAEPg | EPGObject | EPG | Endpoint Group |
-| fvCEp | EndpointObject | Endpoint | Endpoint |
-| fabricPod | PodObject | Pod | Pod |
-| fabricNode | NodeObject | Node | ACI Node |
-| fabricPathEpCont | PathsObject | Paths | Path Endpoint Container |
-| fabricProtPathEpCont | VPathsObject | VPaths | Protected Path Endpoint Container |
-| fabricPathEp | PathObject | Path | Path Endpoint |
-| vzFilter | FilterObject | Filter | Filter |
-| vzBrCP | ContractObject | Contract | Contract |
-| vzEntry | FilterEntryObject | FilterEntry | Filter Entry |
-| vzSubj | SubjectObject | Subject | Subject of Contract |
-| l3extOut | L3OutObject | L3Out | L3 External Out |
-| l3extInstP | L3ProfileObject | L3Profile | L3 External Profile |
-| topSystem | SystemObject | System | Node System Details |
-| l1PhysIf | PhysIfObject | PhysIf | Physical Interfaces |
+| fvTenant | aciTenantModel | Tenant | Tenant |
+| fvCtx | aciContextModel | Context | Virtual Routing and Forwarding (VRF) |
+| fvBD | aciBridgeDomainModel | BridgeDomain | Bridge Domain |
+| fvAp | aciAppProfileModel | AppProfile | Appliation Profile |
+| fvSubnet | aciSubnetModel | Subnet | Subnet |
+| fvAEPg | aciEPGModel | EPG | Endpoint Group |
+| fvCEp | aciEndpointModel | Endpoint | Endpoint |
+| fabricPod | aciPodModel | Pod | Pod |
+| fabricNode | aciNodeModel | Node | ACI Node |
+| fabricPathEpCont | aciPathsModel | Paths | Path Endpoint Container |
+| fabricProtPathEpCont | aciVPathsModel | VPaths | Protected Path Endpoint Container |
+| fabricPathEp | aciPathModel | Path | Path Endpoint |
+| vzFilter | aciFilterModel | Filter | Filter |
+| vzBrCP | aciContractModel | Contract | Contract |
+| vzEntry | aciFilterEntryModel | FilterEntry | Filter Entry |
+| vzSubj | aciSubjectModel | Subject | Subject of Contract |
+| l3extOut | aciL3OutModel | L3Out | L3 External Out |
+| l3extInstP | aciL3ProfileModel | L3Profile | L3 External Profile |
+| topSystem | aciSystemModel | System | Node System Details |
+| l1PhysIf | aciPhysIfModel | PhysIf | Physical Interfaces |
 
 **And Retrieve Anything with Controller Object through "Class()" Method**
 

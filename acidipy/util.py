@@ -5,7 +5,7 @@ Created on 2016. 10. 26.
 '''
 
 import re
-from .model import Controller, TenantObject, FilterObject, ContractObject, ContextObject, L3OutObject, L3ProfileObject, BridgeDomainObject, AppProfileObject, FilterEntryObject, SubjectObject, SubnetObject, EPGObject
+from .model import *
 
 def deployACI(desc, verbose=False, debug=False):
     
@@ -223,36 +223,36 @@ def deployACI(desc, verbose=False, debug=False):
     def recursive_delete(obj):
         children = obj.children()
         for child in children:
-            if isinstance(child, FilterObject): recursive_delete(child)
-            elif isinstance(child, ContractObject): recursive_delete(child)
-            elif isinstance(child, ContextObject): recursive_delete(child)
-            elif isinstance(child, L3OutObject): recursive_delete(child)
-            elif isinstance(child, BridgeDomainObject): recursive_delete(child)
-            elif isinstance(child, FilterEntryObject): recursive_delete(child)
-            elif isinstance(child, SubjectObject): recursive_delete(child)
-            elif isinstance(child, SubnetObject): recursive_delete(child)
-            elif isinstance(child, AppProfileObject): recursive_delete(child)
-            elif isinstance(child, EPGObject): recursive_delete(child)
+            if isinstance(child, aciFilterModel): recursive_delete(child)
+            elif isinstance(child, aciContractModel): recursive_delete(child)
+            elif isinstance(child, aciContextModel): recursive_delete(child)
+            elif isinstance(child, aciL3OutModel): recursive_delete(child)
+            elif isinstance(child, aciBridgeDomainModel): recursive_delete(child)
+            elif isinstance(child, aciFilterEntryModel): recursive_delete(child)
+            elif isinstance(child, aciSubjectModel): recursive_delete(child)
+            elif isinstance(child, aciSubnetModel): recursive_delete(child)
+            elif isinstance(child, aciAppProfileModel): recursive_delete(child)
+            elif isinstance(child, aciEPGModel): recursive_delete(child)
         
-        if isinstance(obj, FilterObject):
+        if isinstance(obj, aciFilterModel):
             if obj['dn'] not in flt_objs: object_delete(obj)
-        elif isinstance(obj, ContractObject):
+        elif isinstance(obj, aciContractModel):
             if obj['dn'] not in ctr_objs: object_delete(obj)
-        elif isinstance(obj, ContextObject):
+        elif isinstance(obj, aciContextModel):
             if obj['dn'] not in ctx_objs: object_delete(obj)
-        elif isinstance(obj, L3OutObject):
+        elif isinstance(obj, aciL3OutModel):
             if obj['dn'] not in l3e_objs: object_delete(obj)
-        elif isinstance(obj, FilterEntryObject):
+        elif isinstance(obj, aciFilterEntryModel):
             if obj['dn'] not in fe_objs: object_delete(obj)
-        elif isinstance(obj, SubjectObject):
+        elif isinstance(obj, aciSubjectModel):
             if obj['dn'] not in sj_objs: object_delete(obj)
-        elif isinstance(obj, BridgeDomainObject):
+        elif isinstance(obj, aciBridgeDomainModel):
             if obj['dn'] not in bd_objs: object_delete(obj)
-        elif isinstance(obj, AppProfileObject):
+        elif isinstance(obj, aciAppProfileModel):
             if obj['dn'] not in ap_objs: object_delete(obj)
-        elif isinstance(obj, SubnetObject):
+        elif isinstance(obj, aciSubnetModel):
             if obj['dn'] not in sn_objs: object_delete(obj)
-        elif isinstance(obj, EPGObject):
+        elif isinstance(obj, aciEPGModel):
             if obj['dn'] not in epg_objs: object_delete(obj)
     
     if not deploy_incremental:

@@ -15,16 +15,25 @@ from pygics import Task, RestAPI
 from .static import *
 from .session import Session
 
-#===============================================================================
-# Subscription
-#===============================================================================
+#######################################################################################################
+#  ________  ___  ___  ________  ________  ________  ________  ___  ________  _______   ________      #
+# |\   ____\|\  \|\  \|\   __  \|\   ____\|\   ____\|\   __  \|\  \|\   __  \|\  ___ \ |\   __  \     #
+# \ \  \___|\ \  \\\  \ \  \|\ /\ \  \___|\ \  \___|\ \  \|\  \ \  \ \  \|\ /\ \   __/|\ \  \|\  \    #
+#  \ \_____  \ \  \\\  \ \   __  \ \_____  \ \  \    \ \   _  _\ \  \ \   __  \ \  \_|/_\ \   _  _\   #
+#   \|____|\  \ \  \\\  \ \  \|\  \|____|\  \ \  \____\ \  \\  \\ \  \ \  \|\  \ \  \_|\ \ \  \\  \|  #
+#     ____\_\  \ \_______\ \_______\____\_\  \ \_______\ \__\\ _\\ \__\ \_______\ \_______\ \__\\ _\  #
+#    |\_________\|_______|\|_______|\_________\|_______|\|__|\|__|\|__|\|_______|\|_______|\|__|\|__| #
+#    \|_________|                  \|_________|                                                       #
+#######################################################################################################
 
 class SubscribeHandler:
     def subscribe(self, status, obj): pass
 
 class Subscriber:
     
+    #===========================================================================
     # Background Worker
+    #===========================================================================
     class RefreshWork(Task):
         
         def __init__(self, subscriber, refresh_sec):
@@ -47,7 +56,9 @@ class Subscriber:
             except Exception as e:
                 if self.subscriber.controller.debug: print('[Error]Aidipy:Subscriber:ReceiveWork:%s' % str(e))
         
-    
+    #===========================================================================
+    # Subscriber
+    #===========================================================================
     def __init__(self, controller):
         self.controller = controller
         self.socket = None
@@ -62,7 +73,7 @@ class Subscriber:
     def __connect__(self):
         if not self.conn_status: return
         if self.socket != None: self.socket.close()
-        for i in range(0, self.controller.retry):
+        for _ in range(0, self.controller.retry):
             try: self.socket = create_connection('wss://%s/socket%s' % (self.controller.ip, self.controller.cookie), sslopt={'cert_reqs': ssl.CERT_NONE})
             except: continue
             if self.controller.debug: print('[Info]Acidipy:Subscriber:Session:wss://%s/socket%s' % (self.controller.ip, self.controller.cookie))
@@ -84,7 +95,7 @@ class Subscriber:
         else:
             for sd in subscribe_data:
                 for class_name in sd:
-                    acidipy_obj = AcidipyObject(**sd[class_name]['attributes'])
+                    acidipy_obj = ModelInterface(**sd[class_name]['attributes'])
                     acidipy_obj.controller = self.controller
                     acidipy_obj.class_name = class_name
                     acidipy_obj.is_detail = True
@@ -114,18 +125,99 @@ class Subscriber:
             except Exception as e: raise Subscriber.ExceptAcidipySubscriberRegister(self, e)
         else: raise Subscriber.ExceptAcidipySubscriberRegister(self)
 
-###############################################################
-#  ________  ________ _________  ________  ________     
-# |\   __  \|\   ____\\___   ___\\   __  \|\   __  \    
-# \ \  \|\  \ \  \___\|___ \  \_\ \  \|\  \ \  \|\  \   
-#  \ \   __  \ \  \       \ \  \ \ \  \\\  \ \   _  _\  
-#   \ \  \ \  \ \  \____   \ \  \ \ \  \\\  \ \  \\  \| 
-#    \ \__\ \__\ \_______\  \ \__\ \ \_______\ \__\\ _\ 
-#     \|__|\|__|\|_______|   \|__|  \|_______|\|__|\|__|
-#                                                       
-###############################################################
+##############################################################################################
+#  ___  ________   _________  _______   ________  ________ ________  ________  _______       #
+# |\  \|\   ___  \|\___   ___\\  ___ \ |\   __  \|\  _____\\   __  \|\   ____\|\  ___ \      #
+# \ \  \ \  \\ \  \|___ \  \_\ \   __/|\ \  \|\  \ \  \__/\ \  \|\  \ \  \___|\ \   __/|     #
+#  \ \  \ \  \\ \  \   \ \  \ \ \  \_|/_\ \   _  _\ \   __\\ \   __  \ \  \    \ \  \_|/__   #
+#   \ \  \ \  \\ \  \   \ \  \ \ \  \_|\ \ \  \\  \\ \  \_| \ \  \ \  \ \  \____\ \  \_|\ \  #
+#    \ \__\ \__\\ \__\   \ \__\ \ \_______\ \__\\ _\\ \__\   \ \__\ \__\ \_______\ \_______\ #
+#     \|__|\|__| \|__|    \|__|  \|_______|\|__|\|__|\|__|    \|__|\|__|\|_______|\|_______| #
+#                                                                                            #
+##############################################################################################
 
-class AcidipyActor:
+class RootInterface:
+    
+    def __init__(self, controller, class_name):
+        self.controller = controller
+        self.class_name = class_name
+        if class_name in PREPARE_CLASSES: self.prepare_class = globals()[PREPARE_CLASSES[class_name]]
+        else: self.prepare_class = None
+    
+    def keys(self):
+        if self.class_name in PREPARE_ATTRIBUTES: return PREPARE_ATTRIBUTES[self.class_name]
+        url = '/api/class/' + self.class_name + '.json?page=0&page-size=1'
+        data = self.controller.get(url)
+        try: keys = sorted(data[0][self.class_name]['attributes'].keys())
+        except: raise ExceptAcidipyAttributes()
+        if 'childAction' in keys: keys.remove('childAction')
+        if 'dn' in keys: keys.remove('dn'); keys.insert(0, 'dn')
+        if 'name' in keys: keys.remove('name'); keys.insert(0, 'name')
+        if 'id' in keys: keys.remove('id'); keys.insert(0, 'id')
+        PREPARE_ATTRIBUTES[self.class_name] = keys
+        return keys
+        
+    def list(self, detail=False, sort=None, page=None, **clause):
+        url = '/api/node/class/' + self.class_name + '.json?'
+        if not detail: url += '&rsp-prop-include=naming-only'
+        if len(clause) > 0:
+            url += '&query-target-filter=and('
+            for key in clause: url += 'eq(%s.%s,"%s"),' % (self.class_name, key, clause[key])
+            url += ')'
+        if sort != None:
+            url += '&order-by='
+            if isinstance(sort, list):
+                for s in sort: url += self.class_name + ('.%s,' % s)
+            else: url += self.class_name + ('.%s' % sort)
+        if page != None:
+            url += '&page=%d&page-size=%d' % (page[0], page[1])
+        try: data = self.controller.get(url)
+        except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self.class_name, e)
+        ret = []
+        for d in data:
+            for class_name in d:
+                acidipy_obj = ModelInterface(**d[class_name]['attributes'])
+                acidipy_obj.class_name = class_name
+                acidipy_obj.controller = self.controller
+                acidipy_obj.is_detail = detail
+                if self.prepare_class:
+                    acidipy_obj.__class__ = self.prepare_class
+                    acidipy_obj.__patch__()
+                ret.append(acidipy_obj)
+        return ret
+    
+    def count(self, **clause):
+        url = '/api/node/class/' + self.class_name + '.json?'
+        if len(clause) > 0:
+            url += 'query-target-filter=and('
+            for key in clause: url += 'eq(%s.%s,"%s"),' % (self.class_name, key, clause[key])
+            url += ')&'
+        url += 'rsp-subtree-include=count'
+        try: data = self.controller.get(url)
+        except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self.class_name, e)
+        try: return int(data[0]['moCount']['attributes']['count'])
+        except: raise ExceptAcidipyNonExistCount(self.controller, self.class_name)
+    
+    def health(self):
+        url = '/api/node/class/' + self.class_name + '.json?&rsp-subtree-include=health'
+        try: data = self.controller.get(url)
+        except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self.class_name, e)
+        ret = []
+        for d in data:
+            for class_name in d:
+                try: hinst = d[class_name]['children'][0]['healthInst']
+                except: continue
+                attrs = d[class_name]['attributes']
+                obj = {'dn' : attrs['dn'], 'name' : attrs['name'], 'score' : int(hinst['attributes']['cur'])}
+                ret.append(obj)
+        return ret
+        
+    def subscribe(self, handler):
+        handler.class_name = self.class_name
+        if self.controller.subscriber == None: self.controller.subscriber = Subscriber(self.controller)
+        self.controller.subscriber.register(handler)
+
+class PathInterface:
     
     def __init__(self, parent, class_name, class_pkey=None, class_ident=None):
         self.parent = parent
@@ -169,7 +261,7 @@ class AcidipyActor:
         ret = []
         for d in data:
             for class_name in d:
-                acidipy_obj = AcidipyObject(**d[class_name]['attributes'])
+                acidipy_obj = ModelInterface(**d[class_name]['attributes'])
                 acidipy_obj.class_name = class_name
                 acidipy_obj.controller = self.controller
                 acidipy_obj.is_detail = detail
@@ -187,7 +279,7 @@ class AcidipyActor:
         except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, dn, e)
         for d in data:
             for class_name in d:
-                acidipy_obj = AcidipyObject(**d[class_name]['attributes'])
+                acidipy_obj = ModelInterface(**d[class_name]['attributes'])
                 acidipy_obj.controller = self.controller
                 acidipy_obj.class_name = class_name
                 acidipy_obj.is_detail = detail
@@ -207,29 +299,6 @@ class AcidipyActor:
         try: return int(data[0]['moCount']['attributes']['count'])
         except: raise ExceptAcidipyNonExistCount(self.controller, self.class_name)
     
-    def subscribe(self, handler):
-        handler.class_name = self.class_name
-        if self.controller.subscriber == None: self.controller.subscriber = Subscriber(self.controller)
-        self.controller.subscriber.register(handler)
-        
-    def create(self, **attributes):
-        if self.class_pkey == None or self.class_ident == None: raise ExceptAcidipyCreateObject(self.controller, self.class_name, ExceptAcidipyProcessing(self.controller, 'Uncompleted Identifier'))
-        acidipy_obj = AcidipyObject(**attributes)
-        acidipy_obj.class_name = self.class_name
-        try: ret = self.controller.post('/api/mo/' + self.parent['dn'] + '.json', acidipy_obj.toJson())
-        except Exception as e: raise ExceptAcidipyCreateObject(self.controller, self.class_name, e)
-        if ret:
-            acidipy_obj.controller = self.controller
-            acidipy_obj['dn'] = self.parent['dn'] + (self.class_ident % attributes[self.class_pkey])
-            acidipy_obj.is_detail = False
-            if self.prepare_class:
-                acidipy_obj.__class__ = self.prepare_class
-                acidipy_obj.__patch__()
-            return acidipy_obj
-        raise ExceptAcidipyCreateObject(self.controller, self.class_name, ExceptAcidipyProcessing(self.controller, 'Creation Failed'))
-
-class AcidipyActorHealth:
-
     def health(self):
         url = '/api/node/class/' + self.class_name + '.json?query-target-filter=wcard(' + self.class_name + '.dn,"' + self.parent['dn'] + '/.*")&rsp-subtree-include=health'
         try: data = self.controller.get(url)
@@ -244,112 +313,75 @@ class AcidipyActorHealth:
                 ret.append(obj)
         return ret
     
-class TenantActor(AcidipyActor, AcidipyActorHealth):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fvTenant', 'name', '/tn-%s')
+    def subscribe(self, handler):
+        handler.class_name = self.class_name
+        if self.controller.subscriber == None: self.controller.subscriber = Subscriber(self.controller)
+        self.controller.subscriber.register(handler)
+        
+    def create(self, **attributes):
+        if self.class_pkey == None or self.class_ident == None: raise ExceptAcidipyCreateObject(self.controller, self.class_name, ExceptAcidipyProcessing(self.controller, 'Uncompleted Identifier'))
+        acidipy_obj = ModelInterface(**attributes)
+        acidipy_obj.class_name = self.class_name
+        try: ret = self.controller.post('/api/mo/' + self.parent['dn'] + '.json', acidipy_obj.toJson())
+        except Exception as e: raise ExceptAcidipyCreateObject(self.controller, self.class_name, e)
+        if ret:
+            acidipy_obj.controller = self.controller
+            acidipy_obj['dn'] = self.parent['dn'] + (self.class_ident % attributes[self.class_pkey])
+            acidipy_obj.is_detail = False
+            if self.prepare_class:
+                acidipy_obj.__class__ = self.prepare_class
+                acidipy_obj.__patch__()
+            return acidipy_obj
+        raise ExceptAcidipyCreateObject(self.controller, self.class_name, ExceptAcidipyProcessing(self.controller, 'Creation Failed'))
+
+class MDRootInterface:
     
-class FilterActor(AcidipyActor):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'vzFilter', 'name', '/flt-%s')
-
-class ContractActor(AcidipyActor):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'vzBrCP', 'name', '/brc-%s')
-
-class ContextActor(AcidipyActor, AcidipyActorHealth):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fvCtx', 'name', '/ctx-%s')
-    
-class L3OutActor(AcidipyActor):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'l3extOut', 'name', '/out-%s')
-
-class L3ProfileActor(AcidipyActor):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'l3extInstP', 'name', '/instP-%s')
-    
-class BridgeDomainActor(AcidipyActor, AcidipyActorHealth):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fvBD', 'name', '/BD-%s')
-
-class AppProfileActor(AcidipyActor, AcidipyActorHealth):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fvAp', 'name', '/ap-%s')
-
-class FilterEntryActor(AcidipyActor):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'vzEntry', 'name', '/e-%s')
-
-class SubjectActor(AcidipyActor):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'vzSubj', 'name', '/subj-%s')
-
-class SubnetActor(AcidipyActor):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fvSubnet', 'ip', '/subnet-[%s]')
-
-class EPGActor(AcidipyActor, AcidipyActorHealth):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fvAEPg', 'name', '/epg-%s')
-
-class EndpointActor(AcidipyActor):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fvCEp', 'name', '/cep-%s')
-
-class PodActor(AcidipyActor):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fabricPod', 'id', '/pod-%s')
-    def health(self):
-        url = '/api/node/class/fabricHealthTotal.json?query-target-filter=ne(fabricHealthTotal.dn,"topology/health")'
-        try: data = self.controller.get(url)
-        except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self.class_name, e)
-        ret = []
-        for d in data:
-            for class_name in d:
-                attrs = d[class_name]['attributes']
-                if self.parent['dn'] in attrs['dn']:
-                    obj = {'dn' : attrs['dn'].replace('/health', ''), 'name' : attrs['dn'].split('/')[1].replace('pod-', ''), 'score' : int(attrs['cur'])}
-                    ret.append(obj)
-        return ret
-
-class NodeActor(AcidipyActor):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fabricNode', 'id', '/node-%s')
-    def health(self):
-        url = '/api/node/class/healthInst.json?query-target-filter=wcard(healthInst.dn,"^sys/health")'
-        try: data = self.controller.get(url)
-        except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self.class_name, e)
-        ret = []
-        for d in data:
-            for class_name in d:
-                attrs = d[class_name]['attributes']
-                if self.parent['dn'] in attrs['dn']:
-                    obj = {'dn' : attrs['dn'].replace('/sys/health', ''), 'name' : attrs['dn'].split('/')[2].replace('node-', ''), 'score' : int(attrs['cur'])}
-                    ret.append(obj)
+    def __init__(self, multi_dom, class_name):
+        self.multi_dom = multi_dom
+        self.class_name = class_name
+        
+    def list(self, detail=False, sort=None, page=None, **clause):
+        ret = {}; fetchs = []
+        def fetch(multi_dom, dom_name, class_name, detail, sort, page, clause, ret): ret[dom_name] = multi_dom[dom_name].Class(class_name).list(detail, sort, page, **clause)
+        for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.class_name, detail, sort, page, clause, ret))
+        gevent.joinall(fetchs)
         return ret
     
-class PathsActor(AcidipyActor):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fabricPathEpCont', 'nodeId', '/paths-%s')
-
-class VPathsActor(AcidipyActor):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fabricProtPathEpCont', 'nodeId', '/protpaths-%s')
-
-class PathActor(AcidipyActor):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'fabricPathEp', 'name', '/pathep-[%s]')
-    
-class PhysIfActor(AcidipyActor):
-    def __init__(self, parent): AcidipyActor.__init__(self, parent, 'l1PhysIf', 'id', '/phys-[%s]')
-    def health(self):
-        url = '/api/node/class/healthInst.json?query-target-filter=wcard(healthInst.dn,"phys/health")'
-        try: data = self.controller.get(url)
-        except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self.class_name, e)
-        ret = []
-        for d in data:
-            for class_name in d:
-                attrs = d[class_name]['attributes']
-                if self.parent['dn'] in attrs['dn']:
-                    obj = {'dn' : attrs['dn'].replace('/phys/health', ''), 'name' : attrs['dn'].split('[')[1].replace(']/phys/health', ''), 'score' : int(attrs['cur'])}
-                    ret.append(obj)
+    def count(self, **clause):
+        ret = {}; fetchs = []
+        def fetch(multi_dom, dom_name, class_name, clause, ret): ret[dom_name] = multi_dom[dom_name].Class(class_name).count(**clause)
+        for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.class_name, clause, ret))
+        gevent.joinall(fetchs)
         return ret
 
-########################################################################################
-#  ________  ________  ________  _________  ________  ________  ________ _________   
-# |\   __  \|\   __  \|\   ____\|\___   ___\\   __  \|\   __  \|\   ____\\___   ___\ 
-# \ \  \|\  \ \  \|\ /\ \  \___|\|___ \  \_\ \  \|\  \ \  \|\  \ \  \___\|___ \  \_| 
-#  \ \   __  \ \   __  \ \_____  \   \ \  \ \ \   _  _\ \   __  \ \  \       \ \  \  
-#   \ \  \ \  \ \  \|\  \|____|\  \   \ \  \ \ \  \\  \\ \  \ \  \ \  \____   \ \  \ 
-#    \ \__\ \__\ \_______\____\_\  \   \ \__\ \ \__\\ _\\ \__\ \__\ \_______\  \ \__\
-#     \|__|\|__|\|_______|\_________\   \|__|  \|__|\|__|\|__|\|__|\|_______|   \|__|
-#                        \|_________|                                                
-#
-########################################################################################
+class MDPathInterface:
+    
+    def __init__(self, multi_dom, actor_name):
+        self.multi_dom = multi_dom
+        self.actor_name = actor_name
+    
+    def list(self, detail=False, sort=None, page=None, **clause):
+        ret = {}; fetchs = []
+        def fetch(multi_dom, dom_name, actor_name, detail, sort, page, clause, ret): ret[dom_name] = multi_dom[dom_name].__getattribute__(actor_name).list(detail, sort, page, **clause) 
+        for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.actor_name, detail, sort, page, clause, ret))
+        gevent.joinall(fetchs)
+        return ret
+    
+    def health(self):
+        ret = {}; fetchs = []
+        def fetch(multi_dom, dom_name, actor_name, ret): ret[dom_name] = multi_dom[dom_name].__getattribute__(actor_name).health() 
+        for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.actor_name, ret))
+        gevent.joinall(fetchs)
+        return ret
+        
+    def count(self, **clause):
+        ret = {}; fetchs = []
+        def fetch(multi_dom, dom_name, actor_name, clause, ret): ret[dom_name] = multi_dom[dom_name].__getattribute__(actor_name).count(**clause)
+        for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.actor_name, clause, ret))
+        gevent.joinall(fetchs)
+        return ret
 
-class AcidipyObject(dict):
+class ModelInterface(dict):
     
     def __init__(self, **attributes):
         dict.__init__(self, **attributes)
@@ -411,7 +443,7 @@ class AcidipyObject(dict):
         except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, parent_dn, e)
         for d in data:
             for class_name in d:
-                acidipy_obj = AcidipyObject(**d[class_name]['attributes'])
+                acidipy_obj = ModelInterface(**d[class_name]['attributes'])
                 acidipy_obj.controller = self.controller
                 acidipy_obj.class_name = class_name
                 acidipy_obj.is_detail = detail
@@ -440,7 +472,7 @@ class AcidipyObject(dict):
         ret = []
         for d in data:
             for class_name in d:
-                acidipy_obj = AcidipyObject(**d[class_name]['attributes'])
+                acidipy_obj = ModelInterface(**d[class_name]['attributes'])
                 acidipy_obj.class_name = class_name
                 acidipy_obj.controller = self.controller
                 acidipy_obj.is_detail = detail
@@ -451,7 +483,18 @@ class AcidipyObject(dict):
         return ret
     
     def Class(self, class_name, class_pkey=None, class_ident=None):
-        return AcidipyActor(self, class_name, class_pkey, class_ident)
+        return PathInterface(self, class_name, class_pkey, class_ident)
+    
+    def health(self):
+        url = '/api/mo/' + self['dn'] + '.json?rsp-subtree-include=health'
+        try: data = self.controller.get(url)
+        except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self['dn'], e)
+        for d in data:
+            for class_name in d:
+                try: hinst = d[class_name]['children'][0]['healthInst']
+                except: continue
+                return {'dn' : self['dn'], 'name' : self['name'], 'score' : int(hinst['attributes']['cur'])}
+        raise ExceptAcidipyNonExistHealth(self.controller, self['dn'])
     
     def update(self):
         try: ret = self.controller.put('/api/mo/' + self['dn'] + '.json', data=self.toJson())
@@ -465,31 +508,126 @@ class AcidipyObject(dict):
         if not ret: raise ExceptAcidipyDeleteObject(self.controller, self['dn'], ExceptAcidipyProcessing(self.controller, 'Deleting Failed'))
         return True
 
-class AcidipyObjectHealth:
+##########################################################
+#  ________  ________ _________  ________  ________      #
+# |\   __  \|\   ____\\___   ___\\   __  \|\   __  \     #
+# \ \  \|\  \ \  \___\|___ \  \_\ \  \|\  \ \  \|\  \    #
+#  \ \   __  \ \  \       \ \  \ \ \  \\\  \ \   _  _\   #
+#   \ \  \ \  \ \  \____   \ \  \ \ \  \\\  \ \  \\  \|  #
+#    \ \__\ \__\ \_______\  \ \__\ \ \_______\ \__\\ _\  #
+#     \|__|\|__|\|_______|   \|__|  \|_______|\|__|\|__| #
+#                                                        #
+##########################################################
+
+class TenantActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'fvTenant', 'name', '/tn-%s')
+    
+class FilterActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'vzFilter', 'name', '/flt-%s')
+
+class ContractActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'vzBrCP', 'name', '/brc-%s')
+
+class ContextActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'fvCtx', 'name', '/ctx-%s')
+    
+class L3OutActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'l3extOut', 'name', '/out-%s')
+
+class L3ProfileActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'l3extInstP', 'name', '/instP-%s')
+    
+class BridgeDomainActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'fvBD', 'name', '/BD-%s')
+
+class AppProfileActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'fvAp', 'name', '/ap-%s')
+
+class FilterEntryActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'vzEntry', 'name', '/e-%s')
+
+class SubjectActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'vzSubj', 'name', '/subj-%s')
+
+class SubnetActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'fvSubnet', 'ip', '/subnet-[%s]')
+
+class EPGActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'fvAEPg', 'name', '/epg-%s')
+
+class EndpointActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'fvCEp', 'name', '/cep-%s')
+
+class PodActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'fabricPod', 'id', '/pod-%s')
     
     def health(self):
-        url = '/api/mo/' + self['dn'] + '.json?rsp-subtree-include=health'
+        url = '/api/node/class/fabricHealthTotal.json?query-target-filter=ne(fabricHealthTotal.dn,"topology/health")'
         try: data = self.controller.get(url)
-        except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self['dn'], e)
+        except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self.class_name, e)
+        ret = []
         for d in data:
             for class_name in d:
-                try: hinst = d[class_name]['children'][0]['healthInst']
-                except: continue
-                return {'dn' : self['dn'], 'name' : self['name'], 'score' : int(hinst['attributes']['cur'])}
-        raise ExceptAcidipyNonExistHealth(self.controller, self['dn'])
+                attrs = d[class_name]['attributes']
+                if self.parent['dn'] in attrs['dn']:
+                    obj = {'dn' : attrs['dn'].replace('/health', ''), 'name' : attrs['dn'].split('/')[1].replace('pod-', ''), 'score' : int(attrs['cur'])}
+                    ret.append(obj)
+        return ret
+
+class NodeActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'fabricNode', 'id', '/node-%s')
+    
+    def health(self):
+        url = '/api/node/class/healthInst.json?query-target-filter=wcard(healthInst.dn,"^sys/health")'
+        try: data = self.controller.get(url)
+        except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self.class_name, e)
+        ret = []
+        for d in data:
+            for class_name in d:
+                attrs = d[class_name]['attributes']
+                if self.parent['dn'] in attrs['dn']:
+                    obj = {'dn' : attrs['dn'].replace('/sys/health', ''), 'name' : attrs['dn'].split('/')[2].replace('node-', ''), 'score' : int(attrs['cur'])}
+                    ret.append(obj)
+        return ret
+    
+class PathsActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'fabricPathEpCont', 'nodeId', '/paths-%s')
+
+class VPathsActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'fabricProtPathEpCont', 'nodeId', '/protpaths-%s')
+
+class PathActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'fabricPathEp', 'name', '/pathep-[%s]')
+    
+class PhysIfActor(PathInterface):
+    def __init__(self, parent): PathInterface.__init__(self, parent, 'l1PhysIf', 'id', '/phys-[%s]')
+    
+    def health(self):
+        url = '/api/node/class/healthInst.json?query-target-filter=wcard(healthInst.dn,"phys/health")'
+        try: data = self.controller.get(url)
+        except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self.class_name, e)
+        ret = []
+        for d in data:
+            for class_name in d:
+                attrs = d[class_name]['attributes']
+                if self.parent['dn'] in attrs['dn']:
+                    obj = {'dn' : attrs['dn'].replace('/phys/health', ''), 'name' : attrs['dn'].split('[')[1].replace(']/phys/health', ''), 'score' : int(attrs['cur'])}
+                    ret.append(obj)
+        return ret
+
 
 ###############################################################
-#  _____ ______   ________  ________  _______   ___          
-# |\   _ \  _   \|\   __  \|\   ___ \|\  ___ \ |\  \         
-# \ \  \\\__\ \  \ \  \|\  \ \  \_|\ \ \   __/|\ \  \        
-#  \ \  \\|__| \  \ \  \\\  \ \  \ \\ \ \  \_|/_\ \  \       
-#   \ \  \    \ \  \ \  \\\  \ \  \_\\ \ \  \_|\ \ \  \____  
-#    \ \__\    \ \__\ \_______\ \_______\ \_______\ \_______\
-#     \|__|     \|__|\|_______|\|_______|\|_______|\|_______|
-#
+#  _____ ______   ________  ________  _______   ___           #
+# |\   _ \  _   \|\   __  \|\   ___ \|\  ___ \ |\  \          #
+# \ \  \\\__\ \  \ \  \|\  \ \  \_|\ \ \   __/|\ \  \         #
+#  \ \  \\|__| \  \ \  \\\  \ \  \ \\ \ \  \_|/_\ \  \        #
+#   \ \  \    \ \  \ \  \\\  \ \  \_\\ \ \  \_|\ \ \  \____   #
+#    \ \__\    \ \__\ \_______\ \_______\ \_______\ \_______\ #
+#     \|__|     \|__|\|_______|\|_______|\|_______|\|_______| #
+#                                                             #
 ###############################################################
 
-class TenantObject(AcidipyObject, AcidipyObjectHealth):
+class aciTenantModel(ModelInterface):
     
     @property
     def Filter(self): return FilterActor(self)
@@ -509,101 +647,101 @@ class TenantObject(AcidipyObject, AcidipyObjectHealth):
     @property
     def AppProfile(self): return AppProfileActor(self)
     
-class FilterObject(AcidipyObject):
+class aciFilterModel(ModelInterface):
     
     @property
     def FilterEntry(self): return FilterEntryActor(self)
 
-class ContractObject(AcidipyObject):
+class aciContractModel(ModelInterface):
     
     @property
     def Subject(self): return SubjectActor(self)
 
-class ContextObject(AcidipyObject, AcidipyObjectHealth): pass
+class aciContextModel(ModelInterface): pass
      
-class L3OutObject(AcidipyObject):
+class aciL3OutModel(ModelInterface):
     
     @property
     def L3Profile(self): return L3ProfileActor(self)
         
     def relate(self, obj, **attributes):
-        if isinstance(obj, ContextObject):
+        if isinstance(obj, aciContextModel):
             attributes['tnFvCtxName'] = obj['name']
             try: ret = self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'l3extRsEctx' : {'attributes' : attributes}}))
             except Exception as e: raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], e)
             if ret: return True
         raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], ExceptAcidipyProcessing(self.controller, 'Relate Failed'))
     
-class L3ProfileObject(AcidipyObject): pass
+class aciL3ProfileModel(ModelInterface): pass
 
-class BridgeDomainObject(AcidipyObject, AcidipyObjectHealth):
+class aciBridgeDomainModel(ModelInterface):
     
     @property
     def Subnet(self): return SubnetActor(self)
         
     def relate(self, obj, **attributes):
-        if isinstance(obj, ContextObject):
+        if isinstance(obj, aciContextModel):
             attributes['tnFvCtxName'] = obj['name']
             try: ret = self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsCtx' : {'attributes' : attributes}}))
             except Exception as e: raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], e)
             if ret: return True
-        elif isinstance(obj, L3OutObject):
+        elif isinstance(obj, aciL3OutModel):
             attributes['tnL3extOutName'] = obj['name']
             try: ret = self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsBDToOut' : {'attributes' : attributes}}))
             except Exception as e: raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], e)
             if ret: return True
         raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], ExceptAcidipyProcessing(self.controller, 'Relate Failed'))
          
-class AppProfileObject(AcidipyObject, AcidipyObjectHealth):
+class aciAppProfileModel(ModelInterface):
     
     @property
     def EPG(self): return EPGActor(self)
 
-class FilterEntryObject(AcidipyObject): pass
+class aciFilterEntryModel(ModelInterface): pass
 
-class SubjectObject(AcidipyObject):
+class aciSubjectModel(ModelInterface):
     
     def relate(self, obj, **attributes):
-        if isinstance(obj, FilterObject):
+        if isinstance(obj, aciFilterModel):
             attributes['tnVzFilterName'] = obj['name']
             try: ret = self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'vzRsSubjFiltAtt' : {'attributes' : attributes}}))
             except Exception as e: raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], e)
             if ret: return True
         raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], ExceptAcidipyProcessing(self.controller, 'Relate Failed'))
          
-class SubnetObject(AcidipyObject): pass
+class aciSubnetModel(ModelInterface): pass
      
-class EPGObject(AcidipyObject, AcidipyObjectHealth):
+class aciEPGModel(ModelInterface):
     
     @property
     def Endpoint(self): return EndpointActor(self)
     
     def relate(self, obj, **attributes):
-        if isinstance(obj, BridgeDomainObject):
+        if isinstance(obj, aciBridgeDomainModel):
             attributes['tnFvBDName'] = obj['name']
             try: ret = self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsBd' : {'attributes' : attributes}}))
             except Exception as e: raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], e)
             if ret: return True
-        elif isinstance(obj, ContractObject):
+        elif isinstance(obj, aciContractModel):
             attributes['tnVzBrCPName'] = obj['name']
             try: ret = self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsProv' : {'attributes' : attributes}}))
             except Exception as e: raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], e)
             if ret: return True
-        elif isinstance(obj, ContractObject):
+        elif isinstance(obj, aciContractModel):
             attributes['tnVzBrCPName'] = obj['name']
             try: ret = self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsCons' : {'attributes' : attributes}}))
             except Exception as e: raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], e)
             if ret: return True
-        elif isinstance(obj, PathObject): # need "encap" attribute
+        elif isinstance(obj, aciPathModel): # need "encap" attribute
             attributes['tDn'] = obj['dn']
             try: ret = self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsPathAtt' : {'attributes' : attributes}}))
             except Exception as e: raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], e)
             if ret: return True
         raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], ExceptAcidipyProcessing(self.controller, 'Relate Failed'))
      
-class EndpointObject(AcidipyObject): pass
+class aciEndpointModel(ModelInterface): pass
 
-class PodObject(AcidipyObject):
+class aciPodModel(ModelInterface):
     
     @property
     def Node(self): return NodeActor(self)
@@ -614,41 +752,41 @@ class PodObject(AcidipyObject):
     @property
     def VPaths(self): return VPathsActor(self)
 
-class NodeObject(AcidipyObject):
+class aciNodeModel(ModelInterface):
     
     def __patch__(self):
         if self.is_detail:
             if self['fabricSt'] == 'active' or self['role'] == 'controller':
-                self.System = SystemObject(**self.controller(self['dn'] + '/sys', detail=self.is_detail))
+                self.System = aciSystemModel(**self.controller(self['dn'] + '/sys', detail=self.is_detail))
                 self.System.class_name = 'topSystem'
                 self.System.controller = self.controller
                 self.System.is_detail = self.is_detail
                 self.System.__patch__()
         else:
-            self.System = SystemObject(dn=self['dn'] + '/sys')
+            self.System = aciSystemModel(dn=self['dn'] + '/sys')
             self.System.class_name = 'topSystem'
             self.System.controller = self.controller
             self.System.is_detail = self.is_detail
             self.System.__patch__()
 
-class SystemObject(AcidipyObject):
+class aciSystemModel(ModelInterface):
     
     @property
     def PhysIf(self): return PhysIfActor(self)
         
-class PathsObject(AcidipyObject):
+class aciPathsModel(ModelInterface):
     
     @property
     def Path(self): return PathActor(self)
         
-class VPathsObject(AcidipyObject):
+class aciVPathsModel(ModelInterface):
     
     @property
     def Path(self): return PathActor(self)
 
-class PathObject(AcidipyObject): pass
+class aciPathModel(ModelInterface): pass
 
-class PhysIfObject(AcidipyObject): pass
+class aciPhysIfModel(ModelInterface): pass
         
 #############################################################################################################
 #  ________  ________  ________   _________  ________  ________  ___       ___       _______   ________     
@@ -664,129 +802,47 @@ class PhysIfObject(AcidipyObject): pass
 #===============================================================================
 # Controller
 #===============================================================================
-class Controller(Session, AcidipyObject):
+class Controller(Session, ModelInterface):
     
-    class Actor:
+    class FilterActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'vzFilter')
+    
+    class ContractActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'vzBrCP')
+    
+    class ContextActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'fvCtx')
+    
+    class L3OutActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'l3extOut')
+    
+    class L3ProfileActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'l3extInstP')
         
-        def __init__(self, controller, class_name):
-            self.controller = controller
-            self.class_name = class_name
-            if class_name in PREPARE_CLASSES: self.prepare_class = globals()[PREPARE_CLASSES[class_name]]
-            else: self.prepare_class = None
+    class BridgeDomainActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'fvBD')
+    
+    class AppProfileActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'fvAp')
+    
+    class FilterEntryActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'vzEntry')
+    
+    class SubjectActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'vzSubj')
+    
+    class SubnetActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'fvSubnet')
+    
+    class EPGActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'fvAEPg')
         
-        def keys(self):
-            if self.class_name in PREPARE_ATTRIBUTES: return PREPARE_ATTRIBUTES[self.class_name]
-            url = '/api/class/' + self.class_name + '.json?page=0&page-size=1'
-            data = self.controller.get(url)
-            try: keys = sorted(data[0][self.class_name]['attributes'].keys())
-            except: raise ExceptAcidipyAttributes()
-            if 'childAction' in keys: keys.remove('childAction')
-            if 'dn' in keys: keys.remove('dn'); keys.insert(0, 'dn')
-            if 'name' in keys: keys.remove('name'); keys.insert(0, 'name')
-            if 'id' in keys: keys.remove('id'); keys.insert(0, 'id')
-            PREPARE_ATTRIBUTES[self.class_name] = keys
-            return keys
-            
-        def list(self, detail=False, sort=None, page=None, **clause):
-            url = '/api/node/class/' + self.class_name + '.json?'
-            if not detail: url += '&rsp-prop-include=naming-only'
-            if len(clause) > 0:
-                url += '&query-target-filter=and('
-                for key in clause: url += 'eq(%s.%s,"%s"),' % (self.class_name, key, clause[key])
-                url += ')'
-            if sort != None:
-                url += '&order-by='
-                if isinstance(sort, list):
-                    for s in sort: url += self.class_name + ('.%s,' % s)
-                else: url += self.class_name + ('.%s' % sort)
-            if page != None:
-                url += '&page=%d&page-size=%d' % (page[0], page[1])
-            try: data = self.controller.get(url)
-            except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self.class_name, e)
-            ret = []
-            for d in data:
-                for class_name in d:
-                    acidipy_obj = AcidipyObject(**d[class_name]['attributes'])
-                    acidipy_obj.class_name = class_name
-                    acidipy_obj.controller = self.controller
-                    acidipy_obj.is_detail = detail
-                    if self.prepare_class:
-                        acidipy_obj.__class__ = self.prepare_class
-                        acidipy_obj.__patch__()
-                    ret.append(acidipy_obj)
-            return ret
+    class EndpointActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'fvCEp')
         
-        def count(self, **clause):
-            url = '/api/node/class/' + self.class_name + '.json?'
-            if len(clause) > 0:
-                url += 'query-target-filter=and('
-                for key in clause: url += 'eq(%s.%s,"%s"),' % (self.class_name, key, clause[key])
-                url += ')&'
-            url += 'rsp-subtree-include=count'
-            try: data = self.controller.get(url)
-            except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self.class_name, e)
-            try: return int(data[0]['moCount']['attributes']['count'])
-            except: raise ExceptAcidipyNonExistCount(self.controller, self.class_name)
-            
-        def subscribe(self, handler):
-            handler.class_name = self.class_name
-            if self.controller.subscriber == None: self.controller.subscriber = Subscriber(self.controller)
-            self.controller.subscriber.register(handler)
-            
-    class ActorHealth:
+    class NodeActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'fabricNode')
         
-        def health(self):
-            url = '/api/node/class/' + self.class_name + '.json?&rsp-subtree-include=health'
-            try: data = self.controller.get(url)
-            except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self.class_name, e)
-            ret = []
-            for d in data:
-                for class_name in d:
-                    try: hinst = d[class_name]['children'][0]['healthInst']
-                    except: continue
-                    attrs = d[class_name]['attributes']
-                    obj = {'dn' : attrs['dn'], 'name' : attrs['name'], 'score' : int(hinst['attributes']['cur'])}
-                    ret.append(obj)
-            return ret
-    
-    class FilterActor(Actor):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'vzFilter')
-    
-    class ContractActor(Actor):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'vzBrCP')
-    
-    class ContextActor(Actor, ActorHealth):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fvCtx')
-    
-    class L3OutActor(Actor):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'l3extOut')
-    
-    class L3ProfileActor(Actor):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'l3extInstP')
-        
-    class BridgeDomainActor(Actor, ActorHealth):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fvBD')
-    
-    class AppProfileActor(Actor, ActorHealth):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fvAp')
-    
-    class FilterEntryActor(Actor):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'vzEntry')
-    
-    class SubjectActor(Actor):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'vzSubj')
-    
-    class SubnetActor(Actor):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fvSubnet')
-    
-    class EPGActor(Actor, ActorHealth):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fvAEPg')
-        
-    class EndpointActor(Actor):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fvCEp')
-        
-    class NodeActor(Actor):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fabricNode')
         def health(self):
             url = '/api/node/class/healthInst.json?query-target-filter=wcard(healthInst.dn,"^sys/health")'
             try: data = self.controller.get(url)
@@ -799,20 +855,21 @@ class Controller(Session, AcidipyObject):
                     ret.append(obj)
             return ret
     
-    class PathsActor(Actor):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fabricPathEpCont')
+    class PathsActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'fabricPathEpCont')
     
-    class VPathsActor(Actor):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fabricProtPathEpCont')
+    class VPathsActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'fabricProtPathEpCont')
     
-    class PathActor(Actor):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'fabricPathEp')
+    class PathActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'fabricPathEp')
     
-    class SystemActor(Actor):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'topSystem')
+    class SystemActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'topSystem')
     
-    class PhysIfActor(Actor):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'l1PhysIf')
+    class PhysIfActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'l1PhysIf')
+        
         def health(self):
             url = '/api/node/class/healthInst.json?query-target-filter=wcard(healthInst.dn,"phys/health")'
             try: data = self.controller.get(url)
@@ -825,8 +882,8 @@ class Controller(Session, AcidipyObject):
                     ret.append(obj)
             return ret
     
-    class FaultActor(Actor):
-        def __init__(self, controller): Controller.Actor.__init__(self, controller, 'faultInfo')
+    class FaultActor(RootInterface):
+        def __init__(self, controller): RootInterface.__init__(self, controller, 'faultInfo')
     
     class ActorDesc(dict):
         def __init__(self, controller, dn): dict.__init__(self, dn=dn); self.controller = controller
@@ -838,7 +895,7 @@ class Controller(Session, AcidipyObject):
                          pwd=pwd,
                          refresh_sec=refresh_sec,
                          **kargs)
-        AcidipyObject.__init__(self,
+        ModelInterface.__init__(self,
                                ip=ip,
                                user=user,
                                pwd=pwd,
@@ -891,7 +948,7 @@ class Controller(Session, AcidipyObject):
         raise ExceptAcidipyNonExistHealth(self, self.class_name)
 
     def Class(self, class_name):
-        return Controller.Actor(self, class_name)
+        return RootInterface(self, class_name)
     
     def __call__(self, dn, detail=False):
         url = '/api/mo/' + dn + '.json'
@@ -900,7 +957,7 @@ class Controller(Session, AcidipyObject):
         except Exception as e: raise ExceptAcidipyRetriveObject(self, dn, e)
         for d in data:
             for class_name in d:
-                acidipy_obj = AcidipyObject(**d[class_name]['attributes'])
+                acidipy_obj = ModelInterface(**d[class_name]['attributes'])
                 acidipy_obj.controller = self
                 acidipy_obj.class_name = class_name
                 acidipy_obj.is_detail = detail
@@ -916,53 +973,6 @@ class Controller(Session, AcidipyObject):
 
 class MultiDomain(dict):
     
-    class Actor:
-        
-        def __init__(self, multi_dom, actor_name):
-            self.multi_dom = multi_dom
-            self.actor_name = actor_name
-        
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}; fetchs = []
-            def fetch(multi_dom, dom_name, actor_name, detail, sort, page, clause, ret): ret[dom_name] = multi_dom[dom_name].__getattribute__(actor_name).list(detail, sort, page, **clause) 
-            for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.actor_name, detail, sort, page, clause, ret))
-            gevent.joinall(fetchs)
-            return ret
-        
-        def health(self):
-            ret = {}; fetchs = []
-            def fetch(multi_dom, dom_name, actor_name, ret): ret[dom_name] = multi_dom[dom_name].__getattribute__(actor_name).health() 
-            for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.actor_name, ret))
-            gevent.joinall(fetchs)
-            return ret
-            
-        def count(self, **clause):
-            ret = {}; fetchs = []
-            def fetch(multi_dom, dom_name, actor_name, clause, ret): ret[dom_name] = multi_dom[dom_name].__getattribute__(actor_name).count(**clause)
-            for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.actor_name, clause, ret))
-            gevent.joinall(fetchs)
-            return ret
-    
-    class ClassActor:
-        
-        def __init__(self, multi_dom, class_name):
-            self.multi_dom = multi_dom
-            self.class_name = class_name
-            
-        def list(self, detail=False, sort=None, page=None, **clause):
-            ret = {}; fetchs = []
-            def fetch(multi_dom, dom_name, class_name, detail, sort, page, clause, ret): ret[dom_name] = multi_dom[dom_name].Class(class_name).list(detail, sort, page, **clause)
-            for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.class_name, detail, sort, page, clause, ret))
-            gevent.joinall(fetchs)
-            return ret
-        
-        def count(self, **clause):
-            ret = {}; fetchs = []
-            def fetch(multi_dom, dom_name, class_name, clause, ret): ret[dom_name] = multi_dom[dom_name].Class(class_name).count(**clause)
-            for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.class_name, clause, ret))
-            gevent.joinall(fetchs)
-            return ret
-    
     def __init__(self,
                  conns=RestAPI.DEFAULT_CONN_SIZE,
                  conn_max=RestAPI.DEFAULT_CONN_MAX,
@@ -976,33 +986,33 @@ class MultiDomain(dict):
         self.refresh_sec = refresh_sec
         self.debug = debug
         
-        self.Tenant = MultiDomain.Actor(self, 'Tenant')
-        self.Filter = MultiDomain.Actor(self, 'Filter')
-        self.Contract = MultiDomain.Actor(self, 'Contract')
-        self.Context = MultiDomain.Actor(self, 'Context')
-        self.L3Out = MultiDomain.Actor(self, 'L3Out')
-        self.L3Profile = MultiDomain.Actor(self, 'L3Profile')
-        self.BridgeDomain = MultiDomain.Actor(self, 'BridgeDomain')
-        self.AppProfile = MultiDomain.Actor(self, 'AppProfile')
-        self.FilterEntry = MultiDomain.Actor(self, 'FilterEntry')
-        self.Subject = MultiDomain.Actor(self, 'Subject')
-        self.Subnet = MultiDomain.Actor(self, 'Subnet')
-        self.EPG = MultiDomain.Actor(self, 'EPG')
-        self.Endpoint = MultiDomain.Actor(self, 'Endpoint')
+        self.Tenant = MDPathInterface(self, 'Tenant')
+        self.Filter = MDPathInterface(self, 'Filter')
+        self.Contract = MDPathInterface(self, 'Contract')
+        self.Context = MDPathInterface(self, 'Context')
+        self.L3Out = MDPathInterface(self, 'L3Out')
+        self.L3Profile = MDPathInterface(self, 'L3Profile')
+        self.BridgeDomain = MDPathInterface(self, 'BridgeDomain')
+        self.AppProfile = MDPathInterface(self, 'AppProfile')
+        self.FilterEntry = MDPathInterface(self, 'FilterEntry')
+        self.Subject = MDPathInterface(self, 'Subject')
+        self.Subnet = MDPathInterface(self, 'Subnet')
+        self.EPG = MDPathInterface(self, 'EPG')
+        self.Endpoint = MDPathInterface(self, 'Endpoint')
         
-        self.Pod = MultiDomain.Actor(self, 'Pod')
+        self.Pod = MDPathInterface(self, 'Pod')
         
-        self.Node = MultiDomain.Actor(self, 'Node')
-        self.Paths = MultiDomain.Actor(self, 'Paths')
-        self.VPaths = MultiDomain.Actor(self, 'VPaths')
-        self.Path = MultiDomain.Actor(self, 'Path')
-        self.System = MultiDomain.Actor(self, 'System')
-        self.PhysIf = MultiDomain.Actor(self, 'PhysIf')
+        self.Node = MDPathInterface(self, 'Node')
+        self.Paths = MDPathInterface(self, 'Paths')
+        self.VPaths = MDPathInterface(self, 'VPaths')
+        self.Path = MDPathInterface(self, 'Path')
+        self.System = MDPathInterface(self, 'System')
+        self.PhysIf = MDPathInterface(self, 'PhysIf')
         
-        self.Fault = MultiDomain.Actor(self, 'Fault')
+        self.Fault = MDPathInterface(self, 'Fault')
     
     def Class(self, class_name):
-        return MultiDomain.ClassActor(self, class_name)
+        return MDRootInterface(self, class_name)
     
     def detail(self): return self
     

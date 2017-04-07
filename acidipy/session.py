@@ -4,6 +4,9 @@ Created on 2016. 10. 6.
 @author: "comfact"
 '''
 
+import json
+import string
+
 from pygics import RestAPI
 from .static import *
 
@@ -37,9 +40,13 @@ class Session(RestAPI):
     def __cookie__(self): return {'Set-Cookie' : self.token}
     
     def get(self, url):
-        for i in range(0, self.retry):
+        for _ in range(0, self.retry):
             resp = RestAPI.get(self, url)
-            if resp.status_code == 200: return resp.json()['imdata']
+            if resp.status_code == 200:
+                try: return resp.json()['imdata']
+                except Exception as e:
+                    try: return json.loads(''.join(x for x in resp.text if x in string.printable))['imdata']
+                    except: raise ExceptAcidipyResponse(self, resp.status_code, str(e))
             elif resp.status_code == 403: self.refresh()
             else:
                 try:
@@ -50,7 +57,7 @@ class Session(RestAPI):
         raise ExceptAcidipySession(self)
     
     def post(self, url, data):
-        for i in range(0, self.retry):
+        for _ in range(0, self.retry):
             resp = RestAPI.post(self, url, data)
             if resp.status_code == 200: return True
             elif resp.status_code == 403: self.refresh()
@@ -63,7 +70,7 @@ class Session(RestAPI):
         raise ExceptAcidipySession(self)
     
     def put(self, url, data):
-        for i in range(0, self.retry):
+        for _ in range(0, self.retry):
             resp = RestAPI.put(self, url, data)
             if resp.status_code == 200: return True
             elif resp.status_code == 403: self.refresh()
@@ -76,7 +83,7 @@ class Session(RestAPI):
         raise ExceptAcidipySession(self)
     
     def delete(self, url):
-        for i in range(0, self.retry):
+        for _ in range(0, self.retry):
             resp = RestAPI.delete(self, url)
             if resp.status_code == 200: return True
             elif resp.status_code == 403: self.refresh()
