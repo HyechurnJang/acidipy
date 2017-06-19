@@ -78,7 +78,7 @@ class Subscriber:
             except: continue
             if self.controller.debug: print('[Info]Acidipy:Subscriber:Session:wss://%s/socket%s' % (self.controller.ip, self.controller.cookie))
             return
-        raise Subscriber.ExceptAcidipySubscriberSession(self)
+        raise ExceptAcidipySubscriberSession(self)
     
     def __refresh__(self):
         for subscribe_id in self.handlers:
@@ -115,15 +115,15 @@ class Subscriber:
     
     def register(self, handler):
         try: resp = self.controller.session.get(self.controller.url + '/api/class/%s.json?subscription=yes' % handler.class_name)
-        except Exception as e: raise Subscriber.ExceptAcidipySubscriberRegister(self, e)
+        except Exception as e: raise ExceptAcidipySubscriberRegister(self, e)
         if resp.status_code == 200:
             try:
                 data = resp.json()
                 subscription_id = data['subscriptionId']
                 self.handlers[subscription_id] = handler
                 return subscription_id
-            except Exception as e: raise Subscriber.ExceptAcidipySubscriberRegister(self, e)
-        else: raise Subscriber.ExceptAcidipySubscriberRegister(self)
+            except Exception as e: raise ExceptAcidipySubscriberRegister(self, e)
+        else: raise ExceptAcidipySubscriberRegister(self)
 
 ##############################################################################################
 #  ___  ________   _________  _______   ________  ________ ________  ________  _______       #
