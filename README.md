@@ -3,9 +3,9 @@ Cisco ACI Python API
 
 **ACI** **D**eveloping **I**nterface for **PY**thon
 
-version : 0.11.0
+version : 0.11.1
 
-last change : filter utf-16 character from utf-8 response data & code arranged
+last change : fix subscriber sub class reference
 
 ![Relations](./doc/Relation.png)
 
