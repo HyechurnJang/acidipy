@@ -205,11 +205,14 @@ class RootInterface:
         ret = []
         for d in data:
             for class_name in d:
-                try: hinst = d[class_name]['children'][0]['healthInst']
-                except: continue
                 attrs = d[class_name]['attributes']
-                obj = {'dn' : attrs['dn'], 'name' : attrs['name'], 'score' : int(hinst['attributes']['cur'])}
-                ret.append(obj)
+                try:
+                    for hinst_wrap in d[class_name]['children']:
+                        if 'healthInst' in hinst_wrap:
+                            hinst = hinst_wrap['healthInst']
+                            ret.append({'dn' : attrs['dn'], 'name' : attrs['name'], 'score' : int(hinst['attributes']['cur'])})
+                            break
+                except: continue
         return ret
         
     def subscribe(self, handler):
@@ -306,11 +309,14 @@ class PathInterface:
         ret = []
         for d in data:
             for class_name in d:
-                try: hinst = d[class_name]['children'][0]['healthInst']
-                except: continue
                 attrs = d[class_name]['attributes']
-                obj = {'dn' : attrs['dn'], 'name' : attrs['name'], 'score' : int(hinst['attributes']['cur'])}
-                ret.append(obj)
+                try:
+                    for hinst_wrap in d[class_name]['children']:
+                        if 'healthInst' in hinst_wrap:
+                            hinst = hinst_wrap['healthInst']
+                            ret.append({'dn' : attrs['dn'], 'name' : attrs['name'], 'score' : int(hinst['attributes']['cur'])})
+                            break
+                except: continue
         return ret
     
     def subscribe(self, handler):
@@ -491,9 +497,12 @@ class ModelInterface(dict):
         except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self['dn'], e)
         for d in data:
             for class_name in d:
-                try: hinst = d[class_name]['children'][0]['healthInst']
+                try:
+                    for hinst_wrap in d[class_name]['children']:
+                        if 'healthInst' in hinst_wrap:
+                            hinst = hinst_wrap['healthInst']
+                            return {'dn' : self['dn'], 'name' : self['name'], 'score' : int(hinst['attributes']['cur'])}
                 except: continue
-                return {'dn' : self['dn'], 'name' : self['name'], 'score' : int(hinst['attributes']['cur'])}
         raise ExceptAcidipyNonExistHealth(self.controller, self['dn'])
     
     def update(self):
