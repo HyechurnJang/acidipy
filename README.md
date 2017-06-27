@@ -3,9 +3,9 @@ Cisco ACI Python API
 
 **ACI** **D**eveloping **I**nterface for **PY**thon
 
-version : 0.11.1
+version : 0.11.2
 
-last change : fix subscriber sub class reference
+last change : bug fix health gettering
 
 ![Relations](./doc/Relation.png)
 
