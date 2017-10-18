@@ -5,7 +5,7 @@ Cisco ACI Python API
 
 version : 0.12.0
 
-last change : bug fix health gettering
+last change : remove name in health data
 
 ![Relations](./doc/Relation.png)
 
