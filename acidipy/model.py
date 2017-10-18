@@ -210,9 +210,9 @@ class RootInterface:
                     for hinst_wrap in d[class_name]['children']:
                         if 'healthInst' in hinst_wrap:
                             hinst = hinst_wrap['healthInst']
-                            ret.append({'dn' : attrs['dn'], 'name' : attrs['name'], 'score' : int(hinst['attributes']['cur'])})
+                            ret.append({'dn' : attrs['dn'], 'score' : int(hinst['attributes']['cur'])})
                             break
-                except: continue
+                except Exception as e: print str(e); continue
         return ret
         
     def subscribe(self, handler):
@@ -314,7 +314,7 @@ class PathInterface:
                     for hinst_wrap in d[class_name]['children']:
                         if 'healthInst' in hinst_wrap:
                             hinst = hinst_wrap['healthInst']
-                            ret.append({'dn' : attrs['dn'], 'name' : attrs['name'], 'score' : int(hinst['attributes']['cur'])})
+                            ret.append({'dn' : attrs['dn'], 'score' : int(hinst['attributes']['cur'])})
                             break
                 except: continue
         return ret
@@ -501,7 +501,7 @@ class ModelInterface(dict):
                     for hinst_wrap in d[class_name]['children']:
                         if 'healthInst' in hinst_wrap:
                             hinst = hinst_wrap['healthInst']
-                            return {'dn' : self['dn'], 'name' : self['name'], 'score' : int(hinst['attributes']['cur'])}
+                            return {'dn' : self['dn'], 'score' : int(hinst['attributes']['cur'])}
                 except: continue
         raise ExceptAcidipyNonExistHealth(self.controller, self['dn'])
     
@@ -579,7 +579,7 @@ class PodActor(PathInterface):
             for class_name in d:
                 attrs = d[class_name]['attributes']
                 if self.parent['dn'] in attrs['dn']:
-                    obj = {'dn' : attrs['dn'].replace('/health', ''), 'name' : attrs['dn'].split('/')[1].replace('pod-', ''), 'score' : int(attrs['cur'])}
+                    obj = {'dn' : attrs['dn'].replace('/health', ''), 'score' : int(attrs['cur'])}
                     ret.append(obj)
         return ret
 
@@ -595,7 +595,7 @@ class NodeActor(PathInterface):
             for class_name in d:
                 attrs = d[class_name]['attributes']
                 if self.parent['dn'] in attrs['dn']:
-                    obj = {'dn' : attrs['dn'].replace('/sys/health', ''), 'name' : attrs['dn'].split('/')[2].replace('node-', ''), 'score' : int(attrs['cur'])}
+                    obj = {'dn' : attrs['dn'].replace('/sys/health', ''), 'score' : int(attrs['cur'])}
                     ret.append(obj)
         return ret
     
@@ -620,7 +620,7 @@ class PhysIfActor(PathInterface):
             for class_name in d:
                 attrs = d[class_name]['attributes']
                 if self.parent['dn'] in attrs['dn']:
-                    obj = {'dn' : attrs['dn'].replace('/phys/health', ''), 'name' : attrs['dn'].split('[')[1].replace(']/phys/health', ''), 'score' : int(attrs['cur'])}
+                    obj = {'dn' : attrs['dn'].replace('/phys/health', ''), 'score' : int(attrs['cur'])}
                     ret.append(obj)
         return ret
 
@@ -860,7 +860,7 @@ class Controller(Session, ModelInterface):
             for d in data:
                 for class_name in d:
                     attrs = d[class_name]['attributes']
-                    obj = {'dn' : attrs['dn'].replace('/sys/health', ''), 'name' : attrs['dn'].split('/')[2].replace('node-', ''), 'score' : int(attrs['cur'])}
+                    obj = {'dn' : attrs['dn'].replace('/sys/health', ''), 'score' : int(attrs['cur'])}
                     ret.append(obj)
             return ret
     
@@ -887,7 +887,7 @@ class Controller(Session, ModelInterface):
             for d in data:
                 for class_name in d:
                     attrs = d[class_name]['attributes']
-                    obj = {'dn' : attrs['dn'].replace('/phys/health', ''), 'name' : attrs['dn'].split('[')[1].replace(']/phys/health', ''), 'score' : int(attrs['cur'])}
+                    obj = {'dn' : attrs['dn'].replace('/phys/health', ''), 'score' : int(attrs['cur'])}
                     ret.append(obj)
             return ret
     
@@ -953,7 +953,7 @@ class Controller(Session, ModelInterface):
         for d in data:
             for class_name in d:
                 attrs = d[class_name]['attributes']
-                return {'dn' : 'topology', 'name' : 'Total', 'score' : int(attrs['cur'])}
+                return {'dn' : 'topology', 'score' : int(attrs['cur'])}
         raise ExceptAcidipyNonExistHealth(self, self.class_name)
 
     def Class(self, class_name):

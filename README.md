@@ -3,7 +3,7 @@ Cisco ACI Python API
 
 **ACI** **D**eveloping **I**nterface for **PY**thon
 
-version : 0.11.2
+version : 0.12.0
 
 last change : bug fix health gettering
 
