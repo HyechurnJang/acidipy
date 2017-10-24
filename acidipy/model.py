@@ -9,145 +9,37 @@ import ssl
 import json
 import gevent
 
+from jzlib import Inventory
+from pygics import Task, Rest
 from websocket import create_connection
-from pygics import Task, RestAPI
 
-from .static import *
 from .session import Session
+from .static import *
 
-#######################################################################################################
-#  ________  ___  ___  ________  ________  ________  ________  ___  ________  _______   ________      #
-# |\   ____\|\  \|\  \|\   __  \|\   ____\|\   ____\|\   __  \|\  \|\   __  \|\  ___ \ |\   __  \     #
-# \ \  \___|\ \  \\\  \ \  \|\ /\ \  \___|\ \  \___|\ \  \|\  \ \  \ \  \|\ /\ \   __/|\ \  \|\  \    #
-#  \ \_____  \ \  \\\  \ \   __  \ \_____  \ \  \    \ \   _  _\ \  \ \   __  \ \  \_|/_\ \   _  _\   #
-#   \|____|\  \ \  \\\  \ \  \|\  \|____|\  \ \  \____\ \  \\  \\ \  \ \  \|\  \ \  \_|\ \ \  \\  \|  #
-#     ____\_\  \ \_______\ \_______\____\_\  \ \_______\ \__\\ _\\ \__\ \_______\ \_______\ \__\\ _\  #
-#    |\_________\|_______|\|_______|\_________\|_______|\|__|\|__|\|__|\|_______|\|_______|\|__|\|__| #
-#    \|_________|                  \|_________|                                                       #
-#######################################################################################################
+#  ________  ________  ________  _________  ________  ________  ________ _________   
+# |\   __  \|\   __  \|\   ____\|\___   ___\\   __  \|\   __  \|\   ____\\___   ___\ 
+# \ \  \|\  \ \  \|\ /\ \  \___|\|___ \  \_\ \  \|\  \ \  \|\  \ \  \___\|___ \  \_| 
+#  \ \   __  \ \   __  \ \_____  \   \ \  \ \ \   _  _\ \   __  \ \  \       \ \  \  
+#   \ \  \ \  \ \  \|\  \|____|\  \   \ \  \ \ \  \\  \\ \  \ \  \ \  \____   \ \  \ 
+#    \ \__\ \__\ \_______\____\_\  \   \ \__\ \ \__\\ _\\ \__\ \__\ \_______\  \ \__\
+#     \|__|\|__|\|_______|\_________\   \|__|  \|__|\|__|\|__|\|__|\|_______|   \|__|
+#                        \|_________|                                                
 
-class SubscribeHandler:
-    def subscribe(self, status, obj): pass
-
-class Subscriber:
+#===============================================================================
+# Global Class
+#===============================================================================
+class AciGlobalClass(Inventory):
     
-    #===========================================================================
-    # Background Worker
-    #===========================================================================
-    class RefreshWork(Task):
-        
-        def __init__(self, subscriber, refresh_sec):
-            Task.__init__(self, refresh_sec, refresh_sec)
-            self.subscriber = subscriber
-        
-        def run(self):
-            try: self.subscriber.__refresh__()
-            except Exception as e:
-                if self.subscriber.controller.debug: print('[Error]Acidipy:Subscriber:RefreshWork:%s' % str(e))
-    
-    class ReceiveWork(Task):
-        
-        def __init__(self, subscriber):
-            Task.__init__(self)
-            self.subscriber = subscriber
-        
-        def run(self):
-            try: self.subscriber.__receive__()
-            except Exception as e:
-                if self.subscriber.controller.debug: print('[Error]Aidipy:Subscriber:ReceiveWork:%s' % str(e))
-        
-    #===========================================================================
-    # Subscriber
-    #===========================================================================
-    def __init__(self, controller):
-        self.controller = controller
-        self.socket = None
-        self.handlers = {}
-        self.conn_status = True
-        
-        self.__connect__()
-        
-        self.receive_work = Subscriber.ReceiveWork(self).start()
-        self.refresh_work = Subscriber.RefreshWork(self, ACIDIPY_SUBSCRIBER_REFRESH_SEC).start()
-        
-    def __connect__(self):
-        if not self.conn_status: return
-        if self.socket != None: self.socket.close()
-        for _ in range(0, self.controller.retry):
-            try: self.socket = create_connection('wss://%s/socket%s' % (self.controller.ip, self.controller.cookie), sslopt={'cert_reqs': ssl.CERT_NONE})
-            except: continue
-            if self.controller.debug: print('[Info]Acidipy:Subscriber:Session:wss://%s/socket%s' % (self.controller.ip, self.controller.cookie))
-            return
-        raise ExceptAcidipySubscriberSession(self)
-    
-    def __refresh__(self):
-        for subscribe_id in self.handlers:
-            try: self.controller.get('/api/subscriptionRefresh.json?id=%s' % subscribe_id)
-            except: continue
-    
-    def __receive__(self):
-        try:
-            data = json.loads(self.socket.recv())
-            subscribe_ids = data['subscriptionId']
-            if not isinstance(subscribe_ids, list): subscribe_ids = [subscribe_ids]
-            subscribe_data = data['imdata']
-        except: self.__connect__()
-        else:
-            for sd in subscribe_data:
-                for class_name in sd:
-                    acidipy_obj = ModelInterface(**sd[class_name]['attributes'])
-                    acidipy_obj.controller = self.controller
-                    acidipy_obj.class_name = class_name
-                    acidipy_obj.is_detail = True
-                    if class_name in PREPARE_CLASSES:
-                        acidipy_obj.__class__ = globals()[PREPARE_CLASSES[class_name]]
-                        acidipy_obj.__patch__()
-                    for subscribe_id in subscribe_ids:
-                        try: self.handlers[subscribe_id].subscribe(acidipy_obj['status'], acidipy_obj)
-                        except Exception as e:
-                            if self.controller.debug: print('[Error]Acidipy:Subscriber:Handler:%s' % str(e))
-    
-    def close(self):
-        self.conn_status = False
-        self.refresh_work.stop()
-        self.receive_work.stop()
-        self.socket.close()
-    
-    def register(self, handler):
-        try: resp = self.controller.session.get(self.controller.url + '/api/class/%s.json?subscription=yes' % handler.class_name)
-        except Exception as e: raise ExceptAcidipySubscriberRegister(self, e)
-        if resp.status_code == 200:
-            try:
-                data = resp.json()
-                subscription_id = data['subscriptionId']
-                self.handlers[subscription_id] = handler
-                return subscription_id
-            except Exception as e: raise ExceptAcidipySubscriberRegister(self, e)
-        else: raise ExceptAcidipySubscriberRegister(self)
-
-##############################################################################################
-#  ___  ________   _________  _______   ________  ________ ________  ________  _______       #
-# |\  \|\   ___  \|\___   ___\\  ___ \ |\   __  \|\  _____\\   __  \|\   ____\|\  ___ \      #
-# \ \  \ \  \\ \  \|___ \  \_\ \   __/|\ \  \|\  \ \  \__/\ \  \|\  \ \  \___|\ \   __/|     #
-#  \ \  \ \  \\ \  \   \ \  \ \ \  \_|/_\ \   _  _\ \   __\\ \   __  \ \  \    \ \  \_|/__   #
-#   \ \  \ \  \\ \  \   \ \  \ \ \  \_|\ \ \  \\  \\ \  \_| \ \  \ \  \ \  \____\ \  \_|\ \  #
-#    \ \__\ \__\\ \__\   \ \__\ \ \_______\ \__\\ _\\ \__\   \ \__\ \__\ \_______\ \_______\ #
-#     \|__|\|__| \|__|    \|__|  \|_______|\|__|\|__|\|__|    \|__|\|__|\|_______|\|_______| #
-#                                                                                            #
-##############################################################################################
-
-class RootInterface:
-    
-    def __init__(self, controller, class_name):
-        self.controller = controller
+    def __init__(self, class_name):
         self.class_name = class_name
         if class_name in PREPARE_CLASSES: self.prepare_class = globals()[PREPARE_CLASSES[class_name]]
         else: self.prepare_class = None
     
     def keys(self):
+        controller = ~self
         if self.class_name in PREPARE_ATTRIBUTES: return PREPARE_ATTRIBUTES[self.class_name]
         url = '/api/class/' + self.class_name + '.json?page=0&page-size=1'
-        data = self.controller.get(url)
+        data = controller.get(url)
         try: keys = sorted(data[0][self.class_name]['attributes'].keys())
         except: raise ExceptAcidipyAttributes()
         if 'childAction' in keys: keys.remove('childAction')
@@ -158,6 +50,7 @@ class RootInterface:
         return keys
         
     def list(self, detail=False, sort=None, page=None, **clause):
+        controller = ~self
         url = '/api/node/class/' + self.class_name + '.json?'
         if not detail: url += '&rsp-prop-include=naming-only'
         if len(clause) > 0:
@@ -171,37 +64,39 @@ class RootInterface:
             else: url += self.class_name + ('.%s' % sort)
         if page != None:
             url += '&page=%d&page-size=%d' % (page[0], page[1])
-        try: data = self.controller.get(url)
-        except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self.class_name, e)
+        try: data = controller.get(url)
+        except Exception as e: raise ExceptAcidipyRetriveObject(controller, self.class_name, e)
         ret = []
         for d in data:
             for class_name in d:
-                acidipy_obj = ModelInterface(**d[class_name]['attributes'])
-                acidipy_obj.class_name = class_name
-                acidipy_obj.controller = self.controller
-                acidipy_obj.is_detail = detail
+                obj = AciObject(**d[class_name]['attributes'])
+                obj.class_name = class_name
+                obj.controller = controller
+                obj.is_detail = detail
                 if self.prepare_class:
-                    acidipy_obj.__class__ = self.prepare_class
-                    acidipy_obj.__patch__()
-                ret.append(acidipy_obj)
+                    obj.__class__ = self.prepare_class
+                    obj.__patch__()
+                ret.append(obj)
         return ret
     
     def count(self, **clause):
+        controller = ~self
         url = '/api/node/class/' + self.class_name + '.json?'
         if len(clause) > 0:
             url += 'query-target-filter=and('
             for key in clause: url += 'eq(%s.%s,"%s"),' % (self.class_name, key, clause[key])
             url += ')&'
         url += 'rsp-subtree-include=count'
-        try: data = self.controller.get(url)
-        except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self.class_name, e)
+        try: data = controller.get(url)
+        except Exception as e: raise ExceptAcidipyRetriveObject(controller, self.class_name, e)
         try: return int(data[0]['moCount']['attributes']['count'])
-        except: raise ExceptAcidipyNonExistCount(self.controller, self.class_name)
+        except: raise ExceptAcidipyNonExistCount(controller, self.class_name)
     
     def health(self):
+        controller = ~self
         url = '/api/node/class/' + self.class_name + '.json?&rsp-subtree-include=health'
-        try: data = self.controller.get(url)
-        except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self.class_name, e)
+        try: data = controller.get(url)
+        except Exception as e: raise ExceptAcidipyRetriveObject(controller, self.class_name, e)
         ret = []
         for d in data:
             for class_name in d:
@@ -212,25 +107,29 @@ class RootInterface:
                             hinst = hinst_wrap['healthInst']
                             ret.append({'dn' : attrs['dn'], 'score' : int(hinst['attributes']['cur'])})
                             break
-                except Exception as e: print str(e); continue
+                except: continue
         return ret
         
-    def subscribe(self, handler):
+    def event(self, handler):
+        controller = ~self
         handler.class_name = self.class_name
-        if self.controller.subscriber == None: self.controller.subscriber = Subscriber(self.controller)
-        self.controller.subscriber.register(handler)
+        if not controller.etrigger: controller.etrigger = Controller.EventTrigger(controller)
+        controller.etrigger.register(handler)
 
-class PathInterface:
-    
-    def __init__(self, parent, class_name, class_pkey=None, class_ident=None):
+#===============================================================================
+# Actor Class
+#===============================================================================
+class AciActorClass:
+     
+    def __init__(self, parent, class_name, ident=None, prime_key=None):
         self.parent = parent
         self.controller = parent.controller
         self.class_name = class_name
-        self.class_pkey = class_pkey
-        self.class_ident = class_ident
+        self.ident = ident
+        self.prime_key = prime_key
         if class_name in PREPARE_CLASSES: self.prepare_class = globals()[PREPARE_CLASSES[class_name]]
         else: self.prepare_class = None
-    
+     
     def keys(self):
         if self.class_name in PREPARE_ATTRIBUTES: return PREPARE_ATTRIBUTES[self.class_name]
         url = '/api/class/' + self.class_name + '.json?page=0&page-size=1'
@@ -244,7 +143,7 @@ class PathInterface:
         if 'id' in keys: keys.remove('id'); keys.insert(0, 'id')
         PREPARE_ATTRIBUTES[self.class_name] = keys
         return keys
-
+ 
     def list(self, detail=False, sort=None, page=None, **clause):
         url = '/api/mo/' + self.parent['dn'] + '.json?query-target=subtree&target-subtree-class=' + self.class_name
         if not detail: url += '&rsp-prop-include=naming-only'
@@ -264,34 +163,34 @@ class PathInterface:
         ret = []
         for d in data:
             for class_name in d:
-                acidipy_obj = ModelInterface(**d[class_name]['attributes'])
-                acidipy_obj.class_name = class_name
-                acidipy_obj.controller = self.controller
-                acidipy_obj.is_detail = detail
+                obj = AciObject(**d[class_name]['attributes'])
+                obj.class_name = class_name
+                obj.controller = self.controller
+                obj.is_detail = detail
                 if self.prepare_class:
-                    acidipy_obj.__class__ = self.prepare_class
-                    acidipy_obj.__patch__()
-                ret.append(acidipy_obj)
+                    obj.__class__ = self.prepare_class
+                    obj.__patch__()
+                ret.append(obj)
         return ret
-    
-    def __call__(self, rn, detail=False):
-        dn = self.parent['dn'] + (self.class_ident % rn)
+     
+    def __call__(self, name, detail=False):
+        dn = self.parent['dn'] + (self.ident % name)
         url = '/api/mo/' + dn + '.json'
         if not detail: url += '?rsp-prop-include=naming-only'
         try: data = self.controller.get(url)
         except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, dn, e)
         for d in data:
             for class_name in d:
-                acidipy_obj = ModelInterface(**d[class_name]['attributes'])
-                acidipy_obj.controller = self.controller
-                acidipy_obj.class_name = class_name
-                acidipy_obj.is_detail = detail
+                obj = AciObject(**d[class_name]['attributes'])
+                obj.controller = self.controller
+                obj.class_name = class_name
+                obj.is_detail = detail
                 if self.prepare_class:
-                    acidipy_obj.__class__ = self.prepare_class
-                    acidipy_obj.__patch__()
-                return acidipy_obj
+                    obj.__class__ = self.prepare_class
+                    obj.__patch__()
+                return obj
         raise ExceptAcidipyNonExistData(self.controller, dn)
-    
+     
     def count(self, **clause):
         url = '/api/node/class/' + self.class_name + '.json?query-target-filter=and(wcard(' + self.class_name + '.dn,"' + self.parent['dn'] + '/.*"),'
         if len(clause) > 0:
@@ -301,7 +200,7 @@ class PathInterface:
         except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self.class_name, e)
         try: return int(data[0]['moCount']['attributes']['count'])
         except: raise ExceptAcidipyNonExistCount(self.controller, self.class_name)
-    
+     
     def health(self):
         url = '/api/node/class/' + self.class_name + '.json?query-target-filter=wcard(' + self.class_name + '.dn,"' + self.parent['dn'] + '/.*")&rsp-subtree-include=health'
         try: data = self.controller.get(url)
@@ -318,82 +217,68 @@ class PathInterface:
                             break
                 except: continue
         return ret
-    
-    def subscribe(self, handler):
+     
+    def event(self, handler):
         handler.class_name = self.class_name
-        if self.controller.subscriber == None: self.controller.subscriber = Subscriber(self.controller)
-        self.controller.subscriber.register(handler)
-        
+        if self.controller.etrigger == None: self.controller.etrigger = Controller.EventTrigger(self.controller)
+        self.controller.etrigger.register(handler)
+         
     def create(self, **attributes):
-        if self.class_pkey == None or self.class_ident == None: raise ExceptAcidipyCreateObject(self.controller, self.class_name, ExceptAcidipyProcessing(self.controller, 'Uncompleted Identifier'))
-        acidipy_obj = ModelInterface(**attributes)
-        acidipy_obj.class_name = self.class_name
-        try: ret = self.controller.post('/api/mo/' + self.parent['dn'] + '.json', acidipy_obj.toJson())
+        if self.prime_key == None or self.ident == None: raise ExceptAcidipyCreateObject(self.controller, self.class_name, ExceptAcidipyProcessing(self.controller, 'Uncompleted Identifier'))
+        obj = AciObject(**attributes)
+        obj.class_name = self.class_name
+        try: ret = self.controller.post('/api/mo/' + self.parent['dn'] + '.json', obj.toJson())
         except Exception as e: raise ExceptAcidipyCreateObject(self.controller, self.class_name, e)
         if ret:
-            acidipy_obj.controller = self.controller
-            acidipy_obj['dn'] = self.parent['dn'] + (self.class_ident % attributes[self.class_pkey])
-            acidipy_obj.is_detail = False
+            obj.controller = self.controller
+            obj['dn'] = self.parent['dn'] + (self.ident % attributes[self.prime_key])
+            obj.is_detail = False
             if self.prepare_class:
-                acidipy_obj.__class__ = self.prepare_class
-                acidipy_obj.__patch__()
-            return acidipy_obj
-        raise ExceptAcidipyCreateObject(self.controller, self.class_name, ExceptAcidipyProcessing(self.controller, 'Creation Failed'))
-
-class MDRootInterface:
-    
-    def __init__(self, multi_dom, class_name):
-        self.multi_dom = multi_dom
-        self.class_name = class_name
-        
-    def list(self, detail=False, sort=None, page=None, **clause):
-        ret = {}; fetchs = []
-        def fetch(multi_dom, dom_name, class_name, detail, sort, page, clause, ret): ret[dom_name] = multi_dom[dom_name].Class(class_name).list(detail, sort, page, **clause)
-        for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.class_name, detail, sort, page, clause, ret))
-        gevent.joinall(fetchs)
-        return ret
-    
-    def count(self, **clause):
-        ret = {}; fetchs = []
-        def fetch(multi_dom, dom_name, class_name, clause, ret): ret[dom_name] = multi_dom[dom_name].Class(class_name).count(**clause)
-        for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.class_name, clause, ret))
-        gevent.joinall(fetchs)
-        return ret
-
-class MDPathInterface:
-    
-    def __init__(self, multi_dom, actor_name):
-        self.multi_dom = multi_dom
+                obj.__class__ = self.prepare_class
+                obj.__patch__()
+            return obj
+        raise ExceptAcidipyCreateObject(self.controller, self.class_name, ExceptAcidipyProcessing(self.controller, 'Creation Failed'))
+#===============================================================================
+# Multi Domain Class
+#===============================================================================
+class AciMultiDomClass(Inventory):
+     
+    def __init__(self, actor_name):
         self.actor_name = actor_name
-    
+     
     def list(self, detail=False, sort=None, page=None, **clause):
+        multi_dom = ~self
         ret = {}; fetchs = []
         def fetch(multi_dom, dom_name, actor_name, detail, sort, page, clause, ret): ret[dom_name] = multi_dom[dom_name].__getattribute__(actor_name).list(detail, sort, page, **clause) 
-        for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.actor_name, detail, sort, page, clause, ret))
+        for dom_name in multi_dom: fetchs.append(gevent.spawn(fetch, multi_dom, dom_name, self.actor_name, detail, sort, page, clause, ret))
         gevent.joinall(fetchs)
         return ret
-    
+     
     def health(self):
+        multi_dom = ~self
         ret = {}; fetchs = []
         def fetch(multi_dom, dom_name, actor_name, ret): ret[dom_name] = multi_dom[dom_name].__getattribute__(actor_name).health() 
-        for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.actor_name, ret))
+        for dom_name in multi_dom: fetchs.append(gevent.spawn(fetch, multi_dom, dom_name, self.actor_name, ret))
         gevent.joinall(fetchs)
         return ret
-        
+         
     def count(self, **clause):
+        multi_dom = ~self
         ret = {}; fetchs = []
         def fetch(multi_dom, dom_name, actor_name, clause, ret): ret[dom_name] = multi_dom[dom_name].__getattribute__(actor_name).count(**clause)
-        for dom_name in self.multi_dom: fetchs.append(gevent.spawn(fetch, self.multi_dom, dom_name, self.actor_name, clause, ret))
+        for dom_name in multi_dom: fetchs.append(gevent.spawn(fetch, multi_dom, dom_name, self.actor_name, clause, ret))
         gevent.joinall(fetchs)
         return ret
 
-class ModelInterface(dict):
+#===============================================================================
+# Object
+#===============================================================================
+class AciObject(dict):
     
     def __init__(self, **attributes):
         dict.__init__(self, **attributes)
-    
-    def __patch__(self):
-        pass
+        
+    def __patch__(self): pass
     
     def toJson(self):
         data = {}
@@ -414,16 +299,30 @@ class ModelInterface(dict):
         PREPARE_ATTRIBUTES[self.class_name] = keys
         return keys
     
+    def ident(self):
+        dn = self['dn']
+        if '/' not in dn: return None, self['dn'], None
+        ret = re.match('(?P<path>.*)/(?P<ident>[a-zA-Z0-9]+)$', dn)
+        if ret: return ret.group('path'), ret.group('ident'), None
+        ret = re.match('(?P<path>.*)/(?P<ident>\w+)-\[?(?P<name>[\W\w]+)$', dn)
+        if ret:
+            name = ret.group('name')
+            if ']' in name: name = name[:-1]
+            return ret.group('path'), ret.group('ident'), name
+        return None, None, None
+    
     def dn(self):
         return self['dn']
     
     def rn(self):
-        dn = self['dn']
-        ret = re.match('(?P<path>.*)/(?P<key>\w+)-(?P<rn>\[?[\W\w]+\]?)$', dn)
-        if ret: return ret.group('path'), ret.group('key'), ret.group('rn')
-        ret = re.match('^(?P<rn>\w+)$', dn)
-        if ret: return None, None, ret.group('rn')
-        return None, None, None
+        _, ident, name = self.ident()
+        if not name: return ident
+        return '%s-%s' % (ident, name)
+    
+    def name(self):
+        if 'id' in self: return self['id']
+        elif 'name' in self: return self['name']
+        else: return self['dn']
     
     def path(self):
         return re.sub('/\w+-', '/', self['dn'])
@@ -441,23 +340,23 @@ class ModelInterface(dict):
         return self
 
     def parent(self, detail=False):
-        try: parent_dn = self['dn'].split(re.match('[\W\w]+(?P<rn>/\w+-\[?[\W\w]+]?)$', self['dn']).group('rn'))[0]
-        except: raise ExceptAcidipyNonExistParent(self.controller, self['dn'])
-        url = '/api/mo/' + parent_dn + '.json'
+        path, _, _ = self.ident()
+        if not path: raise ExceptAcidipyNonExistParent(self.controller, self['dn'])
+        url = '/api/mo/' + path + '.json'
         if not detail: url += '?rsp-prop-include=naming-only'
         try: data = self.controller.get(url)
-        except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, parent_dn, e)
+        except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, path, e)
         for d in data:
             for class_name in d:
-                acidipy_obj = ModelInterface(**d[class_name]['attributes'])
-                acidipy_obj.controller = self.controller
-                acidipy_obj.class_name = class_name
-                acidipy_obj.is_detail = detail
+                obj = AciObject(**d[class_name]['attributes'])
+                obj.controller = self.controller
+                obj.class_name = class_name
+                obj.is_detail = detail
                 if class_name in PREPARE_CLASSES:
-                    acidipy_obj.__class__ = globals()[PREPARE_CLASSES[class_name]]
-                    acidipy_obj.__patch__()
-                return acidipy_obj
-        raise ExceptAcidipyNonExistData(self.controller, parent_dn)
+                    obj.__class__ = globals()[PREPARE_CLASSES[class_name]]
+                    obj.__patch__()
+                return obj
+        raise ExceptAcidipyNonExistData(self.controller, path)
 
     def children(self, detail=False, sort=None, page=None, **clause):
         url = '/api/mo/' + self['dn'] + '.json?query-target=children'
@@ -478,18 +377,18 @@ class ModelInterface(dict):
         ret = []
         for d in data:
             for class_name in d:
-                acidipy_obj = ModelInterface(**d[class_name]['attributes'])
-                acidipy_obj.class_name = class_name
-                acidipy_obj.controller = self.controller
-                acidipy_obj.is_detail = detail
+                obj = AciObject(**d[class_name]['attributes'])
+                obj.class_name = class_name
+                obj.controller = self.controller
+                obj.is_detail = detail
                 if class_name in PREPARE_CLASSES:
-                    acidipy_obj.__class__ = globals()[PREPARE_CLASSES[class_name]]
-                    acidipy_obj.__patch__()
-                ret.append(acidipy_obj)
+                    obj.__class__ = globals()[PREPARE_CLASSES[class_name]]
+                    obj.__patch__()
+                ret.append(obj)
         return ret
     
-    def Class(self, class_name, class_pkey=None, class_ident=None):
-        return PathInterface(self, class_name, class_pkey, class_ident)
+    def Class(self, class_name, ident=None, prime_key=None):
+        return AciActorClass(self, class_name, ident, prime_key)
     
     def health(self):
         url = '/api/mo/' + self['dn'] + '.json?rsp-subtree-include=health'
@@ -517,59 +416,56 @@ class ModelInterface(dict):
         if not ret: raise ExceptAcidipyDeleteObject(self.controller, self['dn'], ExceptAcidipyProcessing(self.controller, 'Deleting Failed'))
         return True
 
-##########################################################
-#  ________  ________ _________  ________  ________      #
-# |\   __  \|\   ____\\___   ___\\   __  \|\   __  \     #
-# \ \  \|\  \ \  \___\|___ \  \_\ \  \|\  \ \  \|\  \    #
-#  \ \   __  \ \  \       \ \  \ \ \  \\\  \ \   _  _\   #
-#   \ \  \ \  \ \  \____   \ \  \ \ \  \\\  \ \  \\  \|  #
-#    \ \__\ \__\ \_______\  \ \__\ \ \_______\ \__\\ _\  #
-#     \|__|\|__|\|_______|   \|__|  \|_______|\|__|\|__| #
-#                                                        #
-##########################################################
+#  ________  ________ _________  ________  ________     
+# |\   __  \|\   ____\\___   ___\\   __  \|\   __  \    
+# \ \  \|\  \ \  \___\|___ \  \_\ \  \|\  \ \  \|\  \   
+#  \ \   __  \ \  \       \ \  \ \ \  \\\  \ \   _  _\  
+#   \ \  \ \  \ \  \____   \ \  \ \ \  \\\  \ \  \\  \| 
+#    \ \__\ \__\ \_______\  \ \__\ \ \_______\ \__\\ _\ 
+#     \|__|\|__|\|_______|   \|__|  \|_______|\|__|\|__|
 
-class TenantActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'fvTenant', 'name', '/tn-%s')
-    
-class FilterActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'vzFilter', 'name', '/flt-%s')
-
-class ContractActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'vzBrCP', 'name', '/brc-%s')
-
-class ContextActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'fvCtx', 'name', '/ctx-%s')
-    
-class L3OutActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'l3extOut', 'name', '/out-%s')
-
-class L3ProfileActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'l3extInstP', 'name', '/instP-%s')
-    
-class BridgeDomainActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'fvBD', 'name', '/BD-%s')
-
-class AppProfileActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'fvAp', 'name', '/ap-%s')
-
-class FilterEntryActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'vzEntry', 'name', '/e-%s')
-
-class SubjectActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'vzSubj', 'name', '/subj-%s')
-
-class SubnetActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'fvSubnet', 'ip', '/subnet-[%s]')
-
-class EPGActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'fvAEPg', 'name', '/epg-%s')
-
-class EndpointActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'fvCEp', 'name', '/cep-%s')
-
-class PodActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'fabricPod', 'id', '/pod-%s')
-    
+class AciTenantActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'fvTenant', '/tn-%s', 'name')
+     
+class AciFilterActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'vzFilter', '/flt-%s', 'name')
+ 
+class AciContractActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'vzBrCP', '/brc-%s', 'name')
+ 
+class AciContextActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'fvCtx', '/ctx-%s', 'name')
+     
+class AciL3OutActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'l3extOut', '/out-%s', 'name')
+ 
+class AciL3ProfileActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'l3extInstP', '/instP-%s', 'name')
+     
+class AciBridgeDomainActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'fvBD', '/BD-%s', 'name')
+ 
+class AciAppProfileActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'fvAp', '/ap-%s', 'name')
+ 
+class AciFilterEntryActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'vzEntry', '/e-%s', 'name')
+ 
+class AciSubjectActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'vzSubj', '/subj-%s', 'name')
+ 
+class AciSubnetActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'fvSubnet', '/subnet-[%s]', 'ip')
+ 
+class AciEPGActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'fvAEPg', '/epg-%s', 'name')
+ 
+class AciEndpointActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'fvCEp', '/cep-%s', 'name')
+ 
+class AciPodActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'fabricPod', '/pod-%s', 'id')
+     
     def health(self):
         url = '/api/node/class/fabricHealthTotal.json?query-target-filter=ne(fabricHealthTotal.dn,"topology/health")'
         try: data = self.controller.get(url)
@@ -582,10 +478,10 @@ class PodActor(PathInterface):
                     obj = {'dn' : attrs['dn'].replace('/health', ''), 'score' : int(attrs['cur'])}
                     ret.append(obj)
         return ret
-
-class NodeActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'fabricNode', 'id', '/node-%s')
-    
+ 
+class AciNodeActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'fabricNode', '/node-%s', 'id')
+     
     def health(self):
         url = '/api/node/class/healthInst.json?query-target-filter=wcard(healthInst.dn,"^sys/health")'
         try: data = self.controller.get(url)
@@ -598,19 +494,19 @@ class NodeActor(PathInterface):
                     obj = {'dn' : attrs['dn'].replace('/sys/health', ''), 'score' : int(attrs['cur'])}
                     ret.append(obj)
         return ret
-    
-class PathsActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'fabricPathEpCont', 'nodeId', '/paths-%s')
-
-class VPathsActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'fabricProtPathEpCont', 'nodeId', '/protpaths-%s')
-
-class PathActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'fabricPathEp', 'name', '/pathep-[%s]')
-    
-class PhysIfActor(PathInterface):
-    def __init__(self, parent): PathInterface.__init__(self, parent, 'l1PhysIf', 'id', '/phys-[%s]')
-    
+     
+class AciPathsActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'fabricPathEpCont', '/paths-%s', 'nodeId')
+ 
+class AciVPathsActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'fabricProtPathEpCont', '/protpaths-%s', 'nodeId')
+ 
+class AciPathActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'fabricPathEp', '/pathep-[%s]', 'name')
+     
+class AciPhysIfActor(AciActorClass):
+    def __init__(self, parent): AciActorClass.__init__(self, parent, 'l1PhysIf', '/phys-[%s]', 'id')
+     
     def health(self):
         url = '/api/node/class/healthInst.json?query-target-filter=wcard(healthInst.dn,"phys/health")'
         try: data = self.controller.get(url)
@@ -625,179 +521,176 @@ class PhysIfActor(PathInterface):
         return ret
 
 
-###############################################################
-#  _____ ______   ________  ________  _______   ___           #
-# |\   _ \  _   \|\   __  \|\   ___ \|\  ___ \ |\  \          #
-# \ \  \\\__\ \  \ \  \|\  \ \  \_|\ \ \   __/|\ \  \         #
-#  \ \  \\|__| \  \ \  \\\  \ \  \ \\ \ \  \_|/_\ \  \        #
-#   \ \  \    \ \  \ \  \\\  \ \  \_\\ \ \  \_|\ \ \  \____   #
-#    \ \__\    \ \__\ \_______\ \_______\ \_______\ \_______\ #
-#     \|__|     \|__|\|_______|\|_______|\|_______|\|_______| #
-#                                                             #
-###############################################################
+#  ________  ________        ___  _______   ________ _________   
+# |\   __  \|\   __  \      |\  \|\  ___ \ |\   ____\\___   ___\ 
+# \ \  \|\  \ \  \|\ /_     \ \  \ \   __/|\ \  \___\|___ \  \_| 
+#  \ \  \\\  \ \   __  \  __ \ \  \ \  \_|/_\ \  \       \ \  \  
+#   \ \  \\\  \ \  \|\  \|\  \\_\  \ \  \_|\ \ \  \____   \ \  \ 
+#    \ \_______\ \_______\ \________\ \_______\ \_______\  \ \__\
+#     \|_______|\|_______|\|________|\|_______|\|_______|   \|__|
+#
 
-class aciTenantModel(ModelInterface):
+class AciTenant(AciObject):
     
     @property
-    def Filter(self): return FilterActor(self)
+    def Filter(self): return AciFilterActor(self)
     
     @property
-    def Contract(self): return ContractActor(self)
+    def Contract(self): return AciContractActor(self)
     
     @property
-    def Context(self): return ContextActor(self)
+    def Context(self): return AciContextActor(self)
     
     @property
-    def L3Out(self): return L3OutActor(self)
+    def L3Out(self): return AciL3OutActor(self)
     
     @property
-    def BridgeDomain(self): return BridgeDomainActor(self)
+    def BridgeDomain(self): return AciBridgeDomainActor(self)
     
     @property
-    def AppProfile(self): return AppProfileActor(self)
+    def AppProfile(self): return AciAppProfileActor(self)
     
-class aciFilterModel(ModelInterface):
+class AciFilter(AciObject):
     
     @property
-    def FilterEntry(self): return FilterEntryActor(self)
+    def FilterEntry(self): return AciFilterEntryActor(self)
 
-class aciContractModel(ModelInterface):
+class AciContract(AciObject):
     
     @property
-    def Subject(self): return SubjectActor(self)
+    def Subject(self): return AciSubjectActor(self)
 
-class aciContextModel(ModelInterface): pass
+class AciContext(AciObject): pass
      
-class aciL3OutModel(ModelInterface):
+class AciL3Out(AciObject):
     
     @property
-    def L3Profile(self): return L3ProfileActor(self)
+    def L3Profile(self): return AciL3ProfileActor(self)
         
     def relate(self, obj, **attributes):
-        if isinstance(obj, aciContextModel):
+        if isinstance(obj, AciContext):
             attributes['tnFvCtxName'] = obj['name']
             try: ret = self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'l3extRsEctx' : {'attributes' : attributes}}))
             except Exception as e: raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], e)
             if ret: return True
         raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], ExceptAcidipyProcessing(self.controller, 'Relate Failed'))
     
-class aciL3ProfileModel(ModelInterface): pass
+class AciL3Profile(AciObject): pass
 
-class aciBridgeDomainModel(ModelInterface):
+class AciBridgeDomain(AciObject):
     
     @property
-    def Subnet(self): return SubnetActor(self)
+    def Subnet(self): return AciSubnetActor(self)
         
     def relate(self, obj, **attributes):
-        if isinstance(obj, aciContextModel):
+        if isinstance(obj, AciContext):
             attributes['tnFvCtxName'] = obj['name']
             try: ret = self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsCtx' : {'attributes' : attributes}}))
             except Exception as e: raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], e)
             if ret: return True
-        elif isinstance(obj, aciL3OutModel):
+        elif isinstance(obj, AciL3Out):
             attributes['tnL3extOutName'] = obj['name']
             try: ret = self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsBDToOut' : {'attributes' : attributes}}))
             except Exception as e: raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], e)
             if ret: return True
         raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], ExceptAcidipyProcessing(self.controller, 'Relate Failed'))
          
-class aciAppProfileModel(ModelInterface):
+class AciAppProfile(AciObject):
     
     @property
-    def EPG(self): return EPGActor(self)
+    def EPG(self): return AciEPGActor(self)
 
-class aciFilterEntryModel(ModelInterface): pass
+class AciFilterEntry(AciObject): pass
 
-class aciSubjectModel(ModelInterface):
+class AciSubject(AciObject):
     
     def relate(self, obj, **attributes):
-        if isinstance(obj, aciFilterModel):
+        if isinstance(obj, AciFilter):
             attributes['tnVzFilterName'] = obj['name']
             try: ret = self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'vzRsSubjFiltAtt' : {'attributes' : attributes}}))
             except Exception as e: raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], e)
             if ret: return True
         raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], ExceptAcidipyProcessing(self.controller, 'Relate Failed'))
          
-class aciSubnetModel(ModelInterface): pass
+class AciSubnet(AciObject): pass
      
-class aciEPGModel(ModelInterface):
+class AciEPG(AciObject):
     
     @property
-    def Endpoint(self): return EndpointActor(self)
+    def Endpoint(self): return AciEndpointActor(self)
     
     def relate(self, obj, **attributes):
-        if isinstance(obj, aciBridgeDomainModel):
+        if isinstance(obj, AciBridgeDomain):
             attributes['tnFvBDName'] = obj['name']
             try: ret = self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsBd' : {'attributes' : attributes}}))
             except Exception as e: raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], e)
             if ret: return True
-        elif isinstance(obj, aciContractModel):
+        elif isinstance(obj, AciContract):
             attributes['tnVzBrCPName'] = obj['name']
             try: ret = self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsProv' : {'attributes' : attributes}}))
             except Exception as e: raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], e)
             if ret: return True
-        elif isinstance(obj, aciContractModel):
+        elif isinstance(obj, AciContract):
             attributes['tnVzBrCPName'] = obj['name']
             try: ret = self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsCons' : {'attributes' : attributes}}))
             except Exception as e: raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], e)
             if ret: return True
-        elif isinstance(obj, aciPathModel): # need "encap" attribute
+        elif isinstance(obj, AciPath): # need "encap" attribute
             attributes['tDn'] = obj['dn']
             try: ret = self.controller.post('/api/mo/' + self['dn'] + '.json', data=json.dumps({'fvRsPathAtt' : {'attributes' : attributes}}))
             except Exception as e: raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], e)
             if ret: return True
         raise ExceptAcidipyRelateObject(self.controller, self['dn'] + '<->' + obj['dn'], ExceptAcidipyProcessing(self.controller, 'Relate Failed'))
      
-class aciEndpointModel(ModelInterface): pass
+class AciEndpoint(AciObject): pass
 
-class aciPodModel(ModelInterface):
+class AciPod(AciObject):
     
     @property
-    def Node(self): return NodeActor(self)
+    def Node(self): return AciNodeActor(self)
     
     @property
-    def Paths(self): return PathsActor(self)
+    def Paths(self): return AciPathsActor(self)
     
     @property
-    def VPaths(self): return VPathsActor(self)
+    def VPaths(self): return AciVPathsActor(self)
 
-class aciNodeModel(ModelInterface):
+class AciNode(AciObject):
     
     def __patch__(self):
         if self.is_detail:
             if self['fabricSt'] == 'active' or self['role'] == 'controller':
-                self.System = aciSystemModel(**self.controller(self['dn'] + '/sys', detail=self.is_detail))
+                self.System = AciSystem(**self.controller(self['dn'] + '/sys', detail=self.is_detail))
                 self.System.class_name = 'topSystem'
                 self.System.controller = self.controller
                 self.System.is_detail = self.is_detail
                 self.System.__patch__()
         else:
-            self.System = aciSystemModel(dn=self['dn'] + '/sys')
+            self.System = AciSystem(dn=self['dn'] + '/sys')
             self.System.class_name = 'topSystem'
             self.System.controller = self.controller
             self.System.is_detail = self.is_detail
             self.System.__patch__()
 
-class aciSystemModel(ModelInterface):
+class AciSystem(AciObject):
     
     @property
-    def PhysIf(self): return PhysIfActor(self)
+    def PhysIf(self): return AciPhysIfActor(self)
         
-class aciPathsModel(ModelInterface):
+class AciPaths(AciObject):
     
     @property
-    def Path(self): return PathActor(self)
+    def Path(self): return AciPathActor(self)
         
-class aciVPathsModel(ModelInterface):
+class AciVPaths(AciObject):
     
     @property
-    def Path(self): return PathActor(self)
+    def Path(self): return AciPathActor(self)
 
-class aciPathModel(ModelInterface): pass
+class AciPath(AciObject): pass
 
-class aciPhysIfModel(ModelInterface): pass
+class AciPhysIf(AciObject): pass
         
-#############################################################################################################
 #  ________  ________  ________   _________  ________  ________  ___       ___       _______   ________     
 # |\   ____\|\   __  \|\   ___  \|\___   ___\\   __  \|\   __  \|\  \     |\  \     |\  ___ \ |\   __  \    
 # \ \  \___|\ \  \|\  \ \  \\ \  \|___ \  \_\ \  \|\  \ \  \|\  \ \  \    \ \  \    \ \   __/|\ \  \|\  \   
@@ -806,56 +699,65 @@ class aciPhysIfModel(ModelInterface): pass
 #    \ \_______\ \_______\ \__\\ \__\   \ \__\ \ \__\\ _\\ \_______\ \_______\ \_______\ \_______\ \__\\ _\ 
 #     \|_______|\|_______|\|__| \|__|    \|__|  \|__|\|__|\|_______|\|_______|\|_______|\|_______|\|__|\|__|
 #                                                                                                           
-#############################################################################################################
+
+class Event:
+    
+    #===========================================================================
+    # Implementations
+    #===========================================================================
+    def handle(self, status, obj): pass
 
 #===============================================================================
 # Controller
 #===============================================================================
-class Controller(Session, ModelInterface):
+class Controller(Session, AciObject):
     
-    class FilterActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'vzFilter')
+    #===========================================================================
+    # Inventory Classes
+    #===========================================================================
+    class Filter(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'vzFilter')
     
-    class ContractActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'vzBrCP')
+    class Contract(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'vzBrCP')
     
-    class ContextActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'fvCtx')
+    class Context(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'fvCtx')
     
-    class L3OutActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'l3extOut')
+    class L3Out(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'l3extOut')
     
-    class L3ProfileActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'l3extInstP')
+    class L3Profile(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'l3extInstP')
         
-    class BridgeDomainActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'fvBD')
+    class BridgeDomain(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'fvBD')
     
-    class AppProfileActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'fvAp')
+    class AppProfile(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'fvAp')
     
-    class FilterEntryActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'vzEntry')
+    class FilterEntry(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'vzEntry')
     
-    class SubjectActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'vzSubj')
+    class Subject(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'vzSubj')
     
-    class SubnetActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'fvSubnet')
-    
-    class EPGActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'fvAEPg')
+    class Subnet(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'fvSubnet')
         
-    class EndpointActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'fvCEp')
+    class EPG(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'fvAEPg')
+    
+    class Endpoint(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'fvCEp')
         
-    class NodeActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'fabricNode')
+    class Node(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'fabricNode')
         
         def health(self):
             url = '/api/node/class/healthInst.json?query-target-filter=wcard(healthInst.dn,"^sys/health")'
-            try: data = self.controller.get(url)
-            except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self.class_name, e)
+            try: data = (~self).get(url)
+            except Exception as e: raise ExceptAcidipyRetriveObject(~self, self.class_name, e)
             ret = []
             for d in data:
                 for class_name in d:
@@ -864,25 +766,25 @@ class Controller(Session, ModelInterface):
                     ret.append(obj)
             return ret
     
-    class PathsActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'fabricPathEpCont')
+    class Paths(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'fabricPathEpCont')
     
-    class VPathsActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'fabricProtPathEpCont')
+    class VPaths(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'fabricProtPathEpCont')
     
-    class PathActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'fabricPathEp')
+    class Path(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'fabricPathEp')
     
-    class SystemActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'topSystem')
+    class System(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'topSystem')
     
-    class PhysIfActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'l1PhysIf')
+    class PhysIf(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'l1PhysIf')
         
         def health(self):
             url = '/api/node/class/healthInst.json?query-target-filter=wcard(healthInst.dn,"phys/health")'
-            try: data = self.controller.get(url)
-            except Exception as e: raise ExceptAcidipyRetriveObject(self.controller, self.class_name, e)
+            try: data = (~self).get(url)
+            except Exception as e: raise ExceptAcidipyRetriveObject(~self, self.class_name, e)
             ret = []
             for d in data:
                 for class_name in d:
@@ -891,57 +793,129 @@ class Controller(Session, ModelInterface):
                     ret.append(obj)
             return ret
     
-    class FaultActor(RootInterface):
-        def __init__(self, controller): RootInterface.__init__(self, controller, 'faultInfo')
+    class Fault(AciGlobalClass):
+        def __init__(self): AciGlobalClass.__init__(self, 'faultInfo')
     
-    class ActorDesc(dict):
-        def __init__(self, controller, dn): dict.__init__(self, dn=dn); self.controller = controller
+    #===========================================================================
+    # EventTrigger
+    #===========================================================================
+    class EventTrigger:
     
-    def __init__(self, ip, user, pwd, refresh_sec=ACIDIPY_REFRESH_SEC, **kargs):
+        class Receiver(Task):
+            
+            def __init__(self, etrigger):
+                Task.__init__(self)
+                self.etrigger = etrigger
+                self.start()
+            
+            def __run__(self):
+                try: self.etrigger.__receive__()
+                except Exception as e:
+                    if self.etrigger.controller.debug: print('[Error]Aidipy:EventTrigger:Receiver>>%s' % str(e))
+                    
+        class Refresher(Task):
+            
+            def __init__(self, etrigger, refresh_sec):
+                Task.__init__(self, refresh_sec, refresh_sec)
+                self.etrigger = etrigger
+                self.start()
+            
+            def __run__(self):
+                try: self.etrigger.__refresh__()
+                except Exception as e:
+                    if self.etrigger.controller.debug: print('[Error]Acidipy:EventTrigger:Refresher>>%s' % str(e))
+            
+        def __init__(self, controller):
+            self.controller = controller
+            self.socket = None
+            self.handlers = {}
+            self.conn_status = True
+            self.__connect__()
+            self.receiver = Controller.EventTrigger.Receiver(self)
+            self.refresher = Controller.EventTrigger.Refresher(self, ACIDIPY_SUBSCRIBER_REFRESH_SEC)
+            
+        def __connect__(self):
+            if not self.conn_status: return
+            if self.socket != None: self.socket.close()
+            for _ in range(0, self.controller.retry):
+                try: self.socket = create_connection('wss://%s/socket%s' % (self.controller.ip, self.controller.cookie), sslopt={'cert_reqs': ssl.CERT_NONE})
+                except: continue
+                if self.controller.debug: print('[Info]Acidipy:EventTrigger:Session:wss://%s/socket%s' % (self.controller.ip, self.controller.cookie))
+                return
+            raise ExceptAcidipyEventTriggerSession(self)
+        
+        def __refresh__(self):
+            for subscribe_id in self.handlers:
+                try: self.controller.get('/api/subscriptionRefresh.json?id=%s' % subscribe_id)
+                except: continue
+        
+        def __receive__(self):
+            try:
+                data = json.loads(self.socket.recv())
+                subscribe_ids = data['subscriptionId']
+                if not isinstance(subscribe_ids, list): subscribe_ids = [subscribe_ids]
+                subscribe_data = data['imdata']
+            except: self.__connect__()
+            else:
+                for sd in subscribe_data:
+                    for class_name in sd:
+                        obj = AciObject(**sd[class_name]['attributes'])
+                        obj.controller = self.controller
+                        obj.class_name = class_name
+                        obj.is_detail = True
+                        if class_name in PREPARE_CLASSES:
+                            obj.__class__ = globals()[PREPARE_CLASSES[class_name]]
+                            obj.__patch__()
+                        for subscribe_id in subscribe_ids:
+                            try: self.handlers[subscribe_id].handle(obj['status'], obj)
+                            except Exception as e:
+                                if self.controller.debug: print('[Error]Acidipy:EventTrigger:Handler>>%s' % str(e))
+        
+        def close(self):
+            self.conn_status = False
+            self.refresher.stop()
+            self.receiver.stop()
+            self.socket.close()
+        
+        def register(self, handler):
+            try: resp = self.controller.session.get(self.controller.url + '/api/class/%s.json?subscription=yes' % handler.class_name)
+            except Exception as e: raise ExceptAcidipyEventTriggerRegister(self, e)
+            if resp.status_code == 200:
+                try:
+                    data = resp.json()
+                    subscription_id = data['subscriptionId']
+                    self.handlers[subscription_id] = handler
+                    return subscription_id
+                except Exception as e: raise ExceptAcidipyEventTriggerRegister(self, e)
+            else: raise ExceptAcidipyEventTriggerRegister(self)
+    
+    def __init__(self, ip, usr, pwd, refresh_sec=ACIDIPY_REFRESH_SEC, **kargs):
         Session.__init__(self,
                          ip=ip,
-                         user=user,
+                         usr=usr,
                          pwd=pwd,
                          refresh_sec=refresh_sec,
                          **kargs)
-        ModelInterface.__init__(self,
-                               ip=ip,
-                               user=user,
-                               pwd=pwd,
-                               refresh_sec=refresh_sec,
-                               **kargs)
+        AciObject.__init__(self,
+                           ip=ip,
+                           usr=usr,
+                           pwd=pwd,
+                           refresh_sec=refresh_sec,
+                           **kargs)
         
         self.class_name = 'Controller'
-        self.subscriber = None
+        self.etrigger = None
         
-        self.Tenant = TenantActor(Controller.ActorDesc(self, 'uni'))
+        class RootDesc(dict):
+            def __init__(self, controller, dn):
+                dict.__init__(self, dn=dn)
+                self.controller = controller
         
-        self.Filter = Controller.FilterActor(self)
-        self.Contract = Controller.ContractActor(self)
-        self.Context = Controller.ContextActor(self)
-        self.L3Out = Controller.L3OutActor(self)
-        self.L3Profile = Controller.L3ProfileActor(self)
-        self.BridgeDomain = Controller.BridgeDomainActor(self)
-        self.AppProfile = Controller.AppProfileActor(self)
-        self.FilterEntry = Controller.FilterEntryActor(self)
-        self.Subject = Controller.SubjectActor(self)
-        self.Subnet = Controller.SubnetActor(self)
-        self.EPG = Controller.EPGActor(self)
-        self.Endpoint = Controller.EndpointActor(self)
-        
-        self.Pod = PodActor(Controller.ActorDesc(self, 'topology'))
-        
-        self.Node = Controller.NodeActor(self)
-        self.Paths = Controller.PathsActor(self)
-        self.VPaths = Controller.VPathsActor(self)
-        self.Path = Controller.PathActor(self)
-        self.System = Controller.SystemActor(self)
-        self.PhysIf = Controller.PhysIfActor(self)
-        
-        self.Fault = Controller.FaultActor(self)
+        self.Tenant = AciTenantActor(RootDesc(self, 'uni'))
+        self.Pod = AciPodActor(RootDesc(self, 'topology'))
         
     def close(self):
-        if self.subscriber != None: self.subscriber.close()
+        if self.etrigger != None: self.etrigger.close()
         Session.close(self)
                 
     def detail(self): return self
@@ -957,7 +931,11 @@ class Controller(Session, ModelInterface):
         raise ExceptAcidipyNonExistHealth(self, self.class_name)
 
     def Class(self, class_name):
-        return RootInterface(self, class_name)
+        cls = AciGlobalClass(class_name)
+        cls._inventory_root = self
+        cls._inventory_parent = self
+        cls._inventory_children = []
+        return cls
     
     def __call__(self, dn, detail=False):
         url = '/api/mo/' + dn + '.json'
@@ -966,62 +944,104 @@ class Controller(Session, ModelInterface):
         except Exception as e: raise ExceptAcidipyRetriveObject(self, dn, e)
         for d in data:
             for class_name in d:
-                acidipy_obj = ModelInterface(**d[class_name]['attributes'])
-                acidipy_obj.controller = self
-                acidipy_obj.class_name = class_name
-                acidipy_obj.is_detail = detail
+                obj = AciObject(**d[class_name]['attributes'])
+                obj.controller = self
+                obj.class_name = class_name
+                obj.is_detail = detail
                 if class_name in PREPARE_CLASSES:
-                    acidipy_obj.__class__ = globals()[PREPARE_CLASSES[class_name]]
-                    acidipy_obj.__patch__()
-                return acidipy_obj
+                    obj.__class__ = globals()[PREPARE_CLASSES[class_name]]
+                    obj.__patch__()
+                return obj
         raise ExceptAcidipyNonExistData(self, dn)
 
 #===============================================================================
 # Multi Domain
 #===============================================================================
-
-class MultiDomain(dict):
+class MultiDomain(dict, Inventory):
+    
+    class Tenant(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'Tenant')
+    
+    class Filter(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'Filter')
+    
+    class Contract(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'Contract')
+    
+    class Context(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'Context')
+    
+    class L3Out(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'L3Out')
+    
+    class L3Profile(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'L3Profile')
+    
+    class BridgeDomain(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'BridgeDomain')
+    
+    class AppProfile(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'AppProfile')
+    
+    class FilterEntry(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'FilterEntry')
+    
+    class Subject(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'Subject')
+    
+    class Subnet(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'Subnet')
+    
+    class EPG(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'EPG')
+    
+    class Endpoint(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'Endpoint')
+    
+    class Pod(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'Pod')
+    
+    class Node(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'Node')
+    
+    class Paths(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'Paths')
+    
+    class VPaths(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'VPaths')
+    
+    class Path(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'Path')
+    
+    class System(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'System')
+    
+    class PhysIf(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'PhysIf')
+    
+    class Fault(AciMultiDomClass):
+        def __init__(self): AciMultiDomClass.__init__(self, 'Fault')
     
     def __init__(self,
-                 conns=RestAPI.DEFAULT_CONN_SIZE,
-                 conn_max=RestAPI.DEFAULT_CONN_MAX,
-                 retry=RestAPI.DEFAULT_CONN_RETRY,
+                 conns=Rest.DEFAULT_CONN_SIZE,
+                 max_conns=Rest.DEFAULT_CONN_MAX,
+                 retry=Rest.DEFAULT_CONN_RETRY,
                  refresh_sec=ACIDIPY_REFRESH_SEC,
                  debug=False):
         dict.__init__(self)
+        Inventory.__init__(self)
         self.conns = conns
-        self.conn_max = conn_max
+        self.max_conns = max_conns
         self.retry = retry
         self.refresh_sec = refresh_sec
         self.debug = debug
-        
-        self.Tenant = MDPathInterface(self, 'Tenant')
-        self.Filter = MDPathInterface(self, 'Filter')
-        self.Contract = MDPathInterface(self, 'Contract')
-        self.Context = MDPathInterface(self, 'Context')
-        self.L3Out = MDPathInterface(self, 'L3Out')
-        self.L3Profile = MDPathInterface(self, 'L3Profile')
-        self.BridgeDomain = MDPathInterface(self, 'BridgeDomain')
-        self.AppProfile = MDPathInterface(self, 'AppProfile')
-        self.FilterEntry = MDPathInterface(self, 'FilterEntry')
-        self.Subject = MDPathInterface(self, 'Subject')
-        self.Subnet = MDPathInterface(self, 'Subnet')
-        self.EPG = MDPathInterface(self, 'EPG')
-        self.Endpoint = MDPathInterface(self, 'Endpoint')
-        
-        self.Pod = MDPathInterface(self, 'Pod')
-        
-        self.Node = MDPathInterface(self, 'Node')
-        self.Paths = MDPathInterface(self, 'Paths')
-        self.VPaths = MDPathInterface(self, 'VPaths')
-        self.Path = MDPathInterface(self, 'Path')
-        self.System = MDPathInterface(self, 'System')
-        self.PhysIf = MDPathInterface(self, 'PhysIf')
-        
-        self.Fault = MDPathInterface(self, 'Fault')
     
     def Class(self, class_name):
-        return MDRootInterface(self, class_name)
+        cls = AciMultiDomClass(self, class_name)
+        cls._inventory_root = self
+        cls._inventory_parent = self
+        cls._inventory_children = []
+        return cls
     
     def detail(self): return self
     
@@ -1032,15 +1052,15 @@ class MultiDomain(dict):
         gevent.joinall(fetchs)
         return ret
         
-    def addDomain(self, domain_name, ip, user, pwd):
+    def addDomain(self, domain_name, ip, usr, pwd):
         if domain_name in self:
             if self.debug: print('[Error]Acidipy:Multidomain:AddDomain:Already Exist Domain %s' % domain_name)
             return False
         opts = {'ip' : ip,
-                'user' : user,
+                'usr' : usr,
                 'pwd' : pwd,
                 'conns' : self.conns,
-                'conn_max' : self.conn_max,
+                'max_conns' : self.max_conns,
                 'retry' : self.retry,
                 'refresh_sec' : self.refresh_sec,
                 'debug' : self.debug}

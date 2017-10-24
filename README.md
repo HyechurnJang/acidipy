@@ -3,9 +3,9 @@ Cisco ACI Python API
 
 **ACI** **D**eveloping **I**nterface for **PY**thon
 
-version : 0.12.0
+version : 0.12.1
 
-last change : remove name in health data
+last change : jzlib & bug fix
 
 ![Relations](./doc/Relation.png)
 

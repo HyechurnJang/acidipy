@@ -1,4 +1,4 @@
 
 from .session import Session
-from .model import SubscribeHandler, Controller, MultiDomain 
+from .model import Event, Controller, MultiDomain 
 from .util import deployACI

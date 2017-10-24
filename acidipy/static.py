@@ -14,26 +14,26 @@ ACIDIPY_SUBSCRIBER_REFRESH_SEC = 60
 # Prepare Classes
 #===============================================================================
 PREPARE_CLASSES = {
-    'fvTenant' :             'aciTenantModel',
-    'vzFilter' :             'aciFilterModel',
-    'vzBrCP' :               'aciContractModel',
-    'fvCtx' :                'aciContextModel',
-    'l3extOut' :             'aciL3OutModel',
-    'l3extInstP' :           'aciL3ProfileModel',
-    'fvBD' :                 'aciBridgeDomainModel',
-    'fvAp' :                 'aciAppProfileModel',
-    'vzEntry' :              'aciFilterEntryModel',
-    'vzSubj' :               'aciSubjectModel',
-    'fvSubnet' :             'aciSubnetModel',
-    'fvAEPg' :               'aciEPGModel',
-    'fvCEp' :                'aciEndpointModel',
-    'fabricPod' :            'aciPodModel',
-    'fabricNode' :           'aciNodeModel',
-    'fabricPathEpCont' :     'aciPathsModel',
-    'fabricProtPathEpCont' : 'aciVPathsModel',
-    'fabricPathEp' :         'aciPathModel',
-    'topSystem' :            'aciSystemModel',
-    'l1PhysIf' :             'aciPhysIfModel',
+    'fvTenant' :             'AciTenant',
+    'vzFilter' :             'AciFilter',
+    'vzBrCP' :               'AciContract',
+    'fvCtx' :                'AciContext',
+    'l3extOut' :             'AciL3Out',
+    'l3extInstP' :           'AciL3Profile',
+    'fvBD' :                 'AciBridgeDomain',
+    'fvAp' :                 'AciAppProfile',
+    'vzEntry' :              'AciFilterEntry',
+    'vzSubj' :               'AciSubject',
+    'fvSubnet' :             'AciSubnet',
+    'fvAEPg' :               'AciEPG',
+    'fvCEp' :                'AciEndpoint',
+    'fabricPod' :            'AciPod',
+    'fabricNode' :           'AciNode',
+    'fabricPathEpCont' :     'AciPaths',
+    'fabricProtPathEpCont' : 'AciVPaths',
+    'fabricPathEp' :         'AciPath',
+    'topSystem' :            'AciSystem',
+    'l1PhysIf' :             'AciPhysIf',
 }
 
 PREPARE_ATTRIBUTES = {
@@ -56,13 +56,13 @@ class ExceptAcidipyResponse(ExceptAcidipyAbstract):
     def __init__(self, session, code, text):
         ExceptAcidipyAbstract.__init__(self, session, '[Error]Acidipy:Response:%s:%s' % (code, text))
         
-class ExceptAcidipySubscriberSession(ExceptAcidipyAbstract):
+class ExceptAcidipyEventTriggerSession(ExceptAcidipyAbstract):
     def __init__(self, subscriber):
-        ExceptAcidipyAbstract.__init__(self, subscriber.controller, '[Error]Acidipy:Subscriber:Session:wss://%s/socket%s' % (subscriber.controller.ip, subscriber.controller.cookie))
+        ExceptAcidipyAbstract.__init__(self, subscriber.controller, '[Error]Acidipy:EventTrigger:Session:wss://%s/socket%s' % (subscriber.controller.ip, subscriber.controller.cookie))
 
-class ExceptAcidipySubscriberRegister(ExceptAcidipyAbstract):
+class ExceptAcidipyEventTriggerRegister(ExceptAcidipyAbstract):
     def __init__(self, subscriber, exp=None):
-        ExceptAcidipyAbstract.__init__(self, subscriber.controller, '[Error]Acidipy:Subscriber:Register:wss://%s/socket%s:%s' % (subscriber.controller.ip, subscriber.controller.cookie, str(exp)))
+        ExceptAcidipyAbstract.__init__(self, subscriber.controller, '[Error]Acidipy:EventTrigger:Register:wss://%s/socket%s>>%s' % (subscriber.controller.ip, subscriber.controller.cookie, str(exp)))
 
 class ExceptAcidipyProcessing(ExceptAcidipyAbstract):
     def __init__(self, session, msg):
@@ -70,27 +70,27 @@ class ExceptAcidipyProcessing(ExceptAcidipyAbstract):
 
 class ExceptAcidipyAttributes(ExceptAcidipyAbstract):
     def __init__(self, session, target, exp):
-        ExceptAcidipyAbstract.__init__(self, session, '[Error]Acidipy:Attributes:%s:%s' % (target, str(exp)))
+        ExceptAcidipyAbstract.__init__(self, session, '[Error]Acidipy:Attributes:%s>>%s' % (target, str(exp)))
 
 class ExceptAcidipyRetriveObject(ExceptAcidipyAbstract):
     def __init__(self, session, target, exp):
-        ExceptAcidipyAbstract.__init__(self, session, '[Error]Acidipy:RetriveObject:%s:%s' % (target, str(exp)))
+        ExceptAcidipyAbstract.__init__(self, session, '[Error]Acidipy:RetriveObject:%s>>%s' % (target, str(exp)))
 
 class ExceptAcidipyCreateObject(ExceptAcidipyAbstract):
     def __init__(self, session, target, exp):
-        ExceptAcidipyAbstract.__init__(self, session, '[Error]Acidipy:CreateObject:%s:%s' % (target, str(exp)))
+        ExceptAcidipyAbstract.__init__(self, session, '[Error]Acidipy:CreateObject:%s>>%s' % (target, str(exp)))
 
 class ExceptAcidipyUpdateObject(ExceptAcidipyAbstract):
     def __init__(self, session, target, exp):
-        ExceptAcidipyAbstract.__init__(self, session, '[Error]Acidipy:UpdateObject:%s:%s' % (target, str(exp)))
+        ExceptAcidipyAbstract.__init__(self, session, '[Error]Acidipy:UpdateObject:%s>>%s' % (target, str(exp)))
 
 class ExceptAcidipyDeleteObject(ExceptAcidipyAbstract):
     def __init__(self, session, target, exp):
-        ExceptAcidipyAbstract.__init__(self, session, '[Error]Acidipy:DeleteObject:%s:%s' % (target, str(exp)))
+        ExceptAcidipyAbstract.__init__(self, session, '[Error]Acidipy:DeleteObject:%s>>%s' % (target, str(exp)))
 
 class ExceptAcidipyRelateObject(ExceptAcidipyAbstract):
     def __init__(self, session, target, exp):
-        ExceptAcidipyAbstract.__init__(self, session, '[Error]Acidipy:RelateObject:%s:%s' % (target, str(exp)))
+        ExceptAcidipyAbstract.__init__(self, session, '[Error]Acidipy:RelateObject:%s>>%s' % (target, str(exp)))
 
 class ExceptAcidipyNonExistData(ExceptAcidipyAbstract):
     def __init__(self, session, target):

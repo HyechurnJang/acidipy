@@ -5,7 +5,7 @@ def read(fname): return open(os.path.join(os.path.dirname(__file__), fname)).rea
 
 setup(
     name='acidipy',
-    version='0.12.0',
+    version='0.12.1',
     license='Apache 2.0',
     author='Hyechurn Jang',
     author_email='hyjang@cisco.com',
@@ -13,7 +13,7 @@ setup(
     description='Cisco ACI Developing Interface for PYthon',
     long_description=read('README'),
     packages=['acidipy'],
-    install_requires=['gevent', 'pygics', 'pyaml', 'requests', 'websocket-client'],
+    install_requires=['jzlib', 'gevent', 'pygics', 'pyaml', 'requests', 'websocket-client'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: Apache Software License',

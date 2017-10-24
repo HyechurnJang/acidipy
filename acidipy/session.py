@@ -7,18 +7,19 @@ Created on 2016. 10. 6.
 import json
 import string
 
-from pygics import RestAPI
+from pygics import Rest
 from .static import *
 
-class Session(RestAPI):
+class Session(Rest):
     
-    def __init__(self, ip, user, pwd, **kargs):
-        RestAPI.__init__(self, ip, user, pwd, proto=RestAPI.PROTO_HTTPS, **kargs)
+    def __init__(self, ip, usr, pwd, **kargs):
+        Rest.__init__(self, 'https://' + ip, usr, pwd, **kargs)
+        self.ip = ip
     
-    def __login__(self, req):
-        try: resp = req.post(self.url + '/api/aaaLogin.json',
-                             json={'aaaUser': {'attributes': {'name': self.user, 'pwd': self.pwd}}},
-                             verify=False, timeout=2.0)
+    def __login__(self, session):
+        try: resp = session.post(self.url + '/api/aaaLogin.json',
+                                 json={'aaaUser': {'attributes': {'name': self.usr, 'pwd': self.pwd}}},
+                                 verify=False, timeout=2.0)
         except: raise ExceptAcidipySession(self)
         if resp.status_code == 200:
             self.cookie = resp.cookies['APIC-cookie']
@@ -26,10 +27,10 @@ class Session(RestAPI):
             return 'APIC-cookie=%s' % self.cookie
         raise ExceptAcidipySession(self)
     
-    def __refresh__(self, req):
-        try: resp = req.get(self.url + '/api/aaaRefresh.json',
-                            cookies=self.__cookie__(),
-                            verify=False, timeout=2.0)
+    def __refresh__(self, session):
+        try: resp = session.get(self.url + '/api/aaaRefresh.json',
+                                cookies=self.__cookie__(),
+                                verify=False, timeout=2.0)
         except: raise ExceptAcidipySession(self)
         if resp.status_code == 200:
             self.cookie = resp.cookies['APIC-cookie']
@@ -41,7 +42,7 @@ class Session(RestAPI):
     
     def get(self, url):
         for _ in range(0, self.retry):
-            resp = RestAPI.get(self, url)
+            resp = Rest.get(self, url)
             if resp.status_code == 200:
                 try: return resp.json()['imdata']
                 except Exception as e:
@@ -58,7 +59,7 @@ class Session(RestAPI):
     
     def post(self, url, data):
         for _ in range(0, self.retry):
-            resp = RestAPI.post(self, url, data)
+            resp = Rest.post(self, url, data)
             if resp.status_code == 200: return True
             elif resp.status_code == 403: self.refresh()
             else:
@@ -71,7 +72,7 @@ class Session(RestAPI):
     
     def put(self, url, data):
         for _ in range(0, self.retry):
-            resp = RestAPI.put(self, url, data)
+            resp = Rest.put(self, url, data)
             if resp.status_code == 200: return True
             elif resp.status_code == 403: self.refresh()
             else:
@@ -84,7 +85,7 @@ class Session(RestAPI):
     
     def delete(self, url):
         for _ in range(0, self.retry):
-            resp = RestAPI.delete(self, url)
+            resp = Rest.delete(self, url)
             if resp.status_code == 200: return True
             elif resp.status_code == 403: self.refresh()
             else:
