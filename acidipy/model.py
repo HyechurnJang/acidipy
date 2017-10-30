@@ -244,12 +244,12 @@ class AciActorClass:
 class AciMultiDomClass(Inventory):
      
     def __init__(self, actor_name):
-        self.actor_name = actor_name
+        self.actor_name = actor_name        
      
     def list(self, detail=False, sort=None, page=None, **clause):
         multi_dom = ~self
         ret = {}; fetchs = []
-        def fetch(multi_dom, dom_name, actor_name, detail, sort, page, clause, ret): ret[dom_name] = multi_dom[dom_name].__getattribute__(actor_name).list(detail, sort, page, **clause) 
+        def fetch(multi_dom, dom_name, actor_name, detail, sort, page, clause, ret): ret[dom_name] = multi_dom[dom_name].__getattribute__(actor_name).list(detail, sort, page, **clause)
         for dom_name in multi_dom: fetchs.append(gevent.spawn(fetch, multi_dom, dom_name, self.actor_name, detail, sort, page, clause, ret))
         gevent.joinall(fetchs)
         return ret
@@ -266,6 +266,35 @@ class AciMultiDomClass(Inventory):
         multi_dom = ~self
         ret = {}; fetchs = []
         def fetch(multi_dom, dom_name, actor_name, clause, ret): ret[dom_name] = multi_dom[dom_name].__getattribute__(actor_name).count(**clause)
+        for dom_name in multi_dom: fetchs.append(gevent.spawn(fetch, multi_dom, dom_name, self.actor_name, clause, ret))
+        gevent.joinall(fetchs)
+        return ret
+
+class AciMultiDomClassName(Inventory):
+    
+    def __init__(self, actor_name):
+        self.actor_name = actor_name        
+     
+    def list(self, detail=False, sort=None, page=None, **clause):
+        multi_dom = ~self
+        ret = {}; fetchs = []
+        def fetch(multi_dom, dom_name, actor_name, detail, sort, page, clause, ret): ret[dom_name] = multi_dom[dom_name].Class(actor_name).list(detail, sort, page, **clause)
+        for dom_name in multi_dom: fetchs.append(gevent.spawn(fetch, multi_dom, dom_name, self.actor_name, detail, sort, page, clause, ret))
+        gevent.joinall(fetchs)
+        return ret
+     
+    def health(self):
+        multi_dom = ~self
+        ret = {}; fetchs = []
+        def fetch(multi_dom, dom_name, actor_name, ret): ret[dom_name] = multi_dom[dom_name].Class(actor_name).health() 
+        for dom_name in multi_dom: fetchs.append(gevent.spawn(fetch, multi_dom, dom_name, self.actor_name, ret))
+        gevent.joinall(fetchs)
+        return ret
+         
+    def count(self, **clause):
+        multi_dom = ~self
+        ret = {}; fetchs = []
+        def fetch(multi_dom, dom_name, actor_name, clause, ret): ret[dom_name] = multi_dom[dom_name].Class(actor_name).count(**clause)
         for dom_name in multi_dom: fetchs.append(gevent.spawn(fetch, multi_dom, dom_name, self.actor_name, clause, ret))
         gevent.joinall(fetchs)
         return ret
@@ -1028,8 +1057,8 @@ class MultiDomain(dict, Inventory):
                  retry=Rest.DEFAULT_CONN_RETRY,
                  refresh_sec=ACIDIPY_REFRESH_SEC,
                  debug=False):
-        dict.__init__(self)
         Inventory.__init__(self)
+        dict.__init__(self)
         self.conns = conns
         self.max_conns = max_conns
         self.retry = retry
@@ -1037,7 +1066,7 @@ class MultiDomain(dict, Inventory):
         self.debug = debug
     
     def Class(self, class_name):
-        cls = AciMultiDomClass(self, class_name)
+        cls = AciMultiDomClassName(class_name)
         cls._inventory_root = self
         cls._inventory_parent = self
         cls._inventory_children = []
