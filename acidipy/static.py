@@ -46,7 +46,7 @@ PREPARE_ATTRIBUTES = {
 class ExceptAcidipyAbstract(Exception):
     def __init__(self, session, msg):
         Exception.__init__(self, msg)
-        if session.debug: print msg
+        if session.debug: print(msg)
 
 class ExceptAcidipySession(ExceptAcidipyAbstract):
     def __init__(self, session):
