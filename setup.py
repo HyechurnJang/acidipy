@@ -1,11 +1,16 @@
+# -*- coding: utf-8 -*-
+'''
+Created on 2018. 10. 22.
+@author: Hyechurn Jang, <hyjang@cisco.com>
+'''
+
 import os
 from setuptools import setup
 
 def read(fname): return open(os.path.join(os.path.dirname(__file__), fname)).read()
-
 setup(
     name='acidipy',
-    version='0.12.2',
+    version='0.13.0',
     license='Apache 2.0',
     author='Hyechurn Jang',
     author_email='hyjang@cisco.com',
